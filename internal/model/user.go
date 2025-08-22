@@ -6,25 +6,51 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	uuid "github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
+	"gorm.io/gorm"
 	_ "gorm.io/gorm"
 )
 
 type User struct {
 
 	// 属性名首字母大写，表示该属性对外导出，类似public。小写则是private
-	Id           uint   `gorm:"primarykey" json:"id"`
-	Username     string `gorm:"unique;not null;size:50" json:"username"`
-	Email        string `gorm:"unique;not null;size:100" json:"email"`
-	PasswordHash string `gorm:"not null" json:"-"`        // 密码哈希值
-	Salt         string `gorm:"unique;not null" json:"-"` // 每个用户的Salt唯一，防止彩虹表攻击
-	Password     string `gorm:"-" json:"password"`        // 明文密码
-	Identity     int    `gorm:"not null" json:"identity"` // 区分管理员和用户，0是Admin，1是Guest
+	Id           uuid.UUID `gorm:"type:uuid;primarykey" json:"id"`
+	Username     string    `gorm:"unique;not null;size:50" json:"username"`
+	Email        string    `gorm:"unique;not null;size:100" json:"email"`
+	PasswordHash string    `gorm:"not null" json:"-"`        // 密码哈希值
+	Salt         string    `gorm:"unique;not null" json:"-"` // 每个用户的Salt唯一，防止彩虹表攻击
+	Password     string    `gorm:"-" json:"password"`        // 明文密码
+	Identity     int       `gorm:"not null" json:"identity"` // 区分管理员和用户，0是Admin，1是Guest
 }
 
 // 用于指定模型对应的数据库表名，模型的属性也会自动转化为列。默认为蛇形复数形式。
 func (User) TableName() string {
 	return "users"
+}
+
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.Id == uuid.Nil {
+		newUUID, err := uuid.NewV7()
+		if err != nil {
+			return err
+		}
+		u.Id = newUUID
+	}
+	return nil
+}
+
+const (
+	ADMIN = iota //语法糖，ADMIN=0,GUEST=1
+	GUEST
+)
+
+func (u *User) IsAdmin() bool {
+	return u.Identity == ADMIN
+}
+
+func (u *User) IsGuest() bool {
+	return u.Identity == GUEST
 }
 
 // argon2密码加密所需参数
@@ -74,17 +100,4 @@ func (u *User) CheckPassword(password string) (bool, error) {
 	}
 
 	return false, nil
-}
-
-const (
-	ADMIN = iota //语法糖，ADMIN=0,GUEST=1
-	GUEST
-)
-
-func (u *User) IsAdmin() bool {
-	return u.Identity == ADMIN
-}
-
-func (u *User) IsGuest() bool {
-	return u.Identity == GUEST
 }
