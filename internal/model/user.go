@@ -17,8 +17,9 @@ type User struct {
 	Username     string `gorm:"unique;not null;size:50" json:"username"`
 	Email        string `gorm:"unique;not null;size:100" json:"email"`
 	PasswordHash string `gorm:"not null" json:"-"`        // 密码哈希值
-	Password     string `gorm:"-" json:"password"`        // 明文密码
 	Salt         string `gorm:"unique;not null" json:"-"` // 每个用户的Salt唯一，防止彩虹表攻击
+	Password     string `gorm:"-" json:"password"`        // 明文密码
+	Identity     int    `gorm:"not null" json:"identity"` // 区分管理员和用户，0是Admin，1是Guest
 }
 
 // 用于指定模型对应的数据库表名，模型的属性也会自动转化为列。默认为蛇形复数形式。
@@ -64,6 +65,7 @@ func (u *User) CheckPassword(password string) (bool, error) {
 		return false, fmt.Errorf("decode PasswordHash error: %w", err)
 	}
 
+	// 哈希值检验
 	comparisonHash := argon2.IDKey([]byte(password), salt, argon2Iterations, argon2Memory, argon2Parallelism, argon2KeyLength)
 
 	// 匹配执行时间基本相同，防止攻击者靠响应时间来猜测密码正确性
@@ -72,4 +74,17 @@ func (u *User) CheckPassword(password string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+const (
+	ADMIN = iota //语法糖，ADMIN=0,GUEST=1
+	GUEST
+)
+
+func (u *User) IsAdmin() bool {
+	return u.Identity == ADMIN
+}
+
+func (u *User) IsGuest() bool {
+	return u.Identity == GUEST
 }
