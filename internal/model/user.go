@@ -41,7 +41,8 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 }
 
 const (
-	ADMIN = iota //语法糖，ADMIN=0,GUEST=1
+	ADMIN = iota //语法糖，ADMIN=0, GUEST=1, GENERAL=2
+	GENERAL
 	GUEST
 )
 
