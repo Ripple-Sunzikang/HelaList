@@ -10,7 +10,7 @@ type Object struct {
 	Name         string
 	Size         int64
 	ModifiedTime time.Time
-	CreateTime   time.Time // 文件创建时间
+	CreatedTime  time.Time // 文件创建时间
 	IsFolder     bool
 	// HashInfo // 哈希检验和先不做
 }
@@ -27,11 +27,11 @@ func (o *Object) GetModifiedTime() time.Time {
 	return o.ModifiedTime
 }
 
-func (o *Object) GetCreateTime() time.Time {
-	if o.CreateTime.IsZero() {
+func (o *Object) GetCreatedTime() time.Time {
+	if o.CreatedTime.IsZero() {
 		return o.GetModifiedTime()
 	}
-	return o.CreateTime
+	return o.CreatedTime
 }
 
 func (o *Object) IsDir() bool {

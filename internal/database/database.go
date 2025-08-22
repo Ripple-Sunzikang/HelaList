@@ -7,15 +7,3 @@ package database
 	设计连接池，提高访问效率；
 	设计Redis辅助数据库，提高访问效率；
 */
-
-import (
-	"sync"
-
-	"gorm.io/gorm"
-)
-
-var (
-	db   *gorm.DB
-	once sync.Once
-	err  error
-)
