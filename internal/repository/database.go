@@ -1,4 +1,4 @@
-package database
+package repository
 
 // 你应该放弃使用MongoDB和MySQL而选择这个更加专业化的PostgreSQL
 /*

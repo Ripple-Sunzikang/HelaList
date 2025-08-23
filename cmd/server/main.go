@@ -2,7 +2,6 @@ package main
 
 import (
 	"HelaList/internal/bootstrap"
-	"HelaList/internal/database"
 	"HelaList/internal/model"
 	"log"
 )
@@ -27,9 +26,9 @@ func main() {
 	// 	log.Fatalf("创建用户失败: %v", err)
 	// }
 
-	newMount := &model.Mount{
-		MountPath: "/",
-		Driver:    "WebDAV",
-	}
-	database.CreateMount(newMount)
+	// newMount := &model.Mount{
+	// 	MountPath: "/",
+	// 	Driver:    "WebDAV",
+	// }
+	// repository.CreateMount(newMount)
 }
