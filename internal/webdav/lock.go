@@ -37,7 +37,8 @@ type lockNode struct {
 type LockSystem interface {
 	// Confirm确定用户是否有权操作。
 	// 两个name是什么意思？因为诸如删除这样的操作，确实是只涉及一个文件。但倘若我要把文件A复制到文件夹B当中，那我就需要同时考虑A和B两者的上锁情况了
-	Confirm(now time.Time, name0 string, name1 string, conditions ...Condition) (release func(), err error)
+	// 私以为既然用的是golang,就没有理由不用切片，而不是用什么函数的可变参数这种妖魔东西
+	Confirm(now time.Time, name0 string, name1 string, conditions []Condition) (release func(), err error)
 	// 创建一个新锁
 	Create(now time.Time, details LockDetails) (token uuid.UUID, err error)
 	// 刷新已有的锁 (正如前面所说，一个锁是有时间的)
@@ -59,7 +60,7 @@ func NewMemoryLockSystem() LockSystem {
 	}
 }
 
-func (m *MemoryLockSystem) Confirm(now time.Time, name0 string, name1 string, conditions ...Condition) (func(), error) {
+func (m *MemoryLockSystem) Confirm(now time.Time, name0 string, name1 string, conditions []Condition) (func(), error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
