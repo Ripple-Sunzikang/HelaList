@@ -3,27 +3,41 @@ package database
 import (
 	"HelaList/internal/bootstrap"
 	"HelaList/internal/model"
-	"errors"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 // 与数据库交互得到用户数据
-
+/*
+其实这带出来一个问题，就是数据库内容的检验应该放在哪里。
+*/
 func CreateUser(user *model.User) error {
-	if user.Password == "" {
-		return errors.New("Password cannot be empty.")
-	}
-
-	if err := user.SetPassword(user.Password); err != nil {
-		return fmt.Errorf("failed to set password: %w", err)
-	}
-
 	result := bootstrap.Db.Create(user)
-
 	if result.Error != nil {
 		return fmt.Errorf("failed to create user: %w", result.Error)
 	}
-
 	return nil
 }
 
+func UpdateUser(user *model.User) error {
+	result := bootstrap.Db.Save(user)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update user: %w", result.Error)
+	}
+	return nil
+}
+
+func DeleteUserById(id uuid.UUID) error {
+	if err := bootstrap.Db.Delete(&model.Mount{}, id).Error; err != nil {
+		return fmt.Errorf("failed to delete mount: %w", err)
+	}
+	return nil
+}
+
+func DeleteUserByUsername(username string) error {
+	if err := bootstrap.Db.Delete(&model.Mount{}, username).Error; err != nil {
+		return fmt.Errorf("failed to delete mount: %w", err)
+	}
+	return nil
+}
