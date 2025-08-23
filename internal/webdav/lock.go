@@ -7,6 +7,7 @@ package webdav
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,10 +21,10 @@ type Condition struct {
 }
 
 type LockDetails struct {
-	RootPath string        //被锁定文件的路径，如/doc/test.md
-	Duration time.Duration // 锁的有效持续时间
-	Owner    string        // 锁的所有者信息
-	// ZeroDepth bool //涉及锁的深度，即只是锁文件本身，还是该文件及所有子文件。在实现锁文件夹时很有必要。
+	RootPath  string        //被锁定文件的路径，如/doc/test.md
+	Duration  time.Duration // 锁的有效持续时间
+	Owner     string        // 锁的所有者信息
+	ZeroDepth bool          //涉及锁的深度，即只是锁文件本身，还是该文件及所有子文件。在实现锁文件夹时很有必要。
 }
 
 type lockNode struct {
@@ -71,6 +72,12 @@ func (m *MemoryLockSystem) Confirm(now time.Time, name0 string, name1 string, co
 		if lock, exists := m.locksByPath[name0]; exists {
 
 			// 这里本应有一个Condition验证的环节的，但是我在写demo,所以先搁置
+			if !m.ValidateCOnditions(lock, conditions) {
+				return nil, fmt.Errorf("路径 %s 的锁条件验证失败", name0)
+			}
+			if lock.held {
+				return nil, fmt.Errorf("路径 %s 的锁正被占用", name0)
+			}
 
 			lock.held = true
 			heldLocks = append(heldLocks, lock)
@@ -82,6 +89,12 @@ func (m *MemoryLockSystem) Confirm(now time.Time, name0 string, name1 string, co
 		if lock, exists := m.locksByPath[name1]; exists {
 
 			// 这里本应有一个Condition验证的环节的，但是我在写demo,所以先搁置
+			if !m.ValidateCOnditions(lock, conditions) {
+				return nil, fmt.Errorf("路径 %s 的锁条件验证失败", name1)
+			}
+			if lock.held {
+				return nil, fmt.Errorf("路径 %s 的锁正被占用", name1)
+			}
 
 			lock.held = true
 			heldLocks = append(heldLocks, lock)
@@ -172,9 +185,43 @@ func (m *MemoryLockSystem) CleanExpiredLocks(now time.Time) {
 	}
 }
 
-// // 用于验证Conditions。先不急着写Condition,先把锁写通了再说。
-// func (m *MemoryLockSystem) ValidateConditions(lock *lockNode, conditions []Condition) bool {
-// 	for _, condition := conditions {
+func (m *MemoryLockSystem) ValidateCOnditions(lock *lockNode, conditions []Condition) bool {
+	for _, condition := range conditions {
+		hasToken := (lock.token == condition.Token)
+		if condition.Not {
+			if hasToken {
+				return false
+			}
+		} else {
+			if !hasToken {
+				return false
+			}
+		}
+	}
+	return true
+}
 
-// 	}
-// }
+// 考虑深度锁，检查路径是否被锁定
+func (m *MemoryLockSystem) isPathLocked(targetPath string) (*lockNode, bool) {
+	// 精确匹配
+	if lock, exists := m.locksByPath[targetPath]; exists {
+		return lock, true
+	}
+
+	//
+	for lockedPath, lock := range m.locksByPath {
+		if !lock.details.ZeroDepth && isSubPath(targetPath, lockedPath) {
+			return lock, true
+		}
+	}
+
+	return nil, false
+}
+
+// 用于判断是否是子路径
+func isSubPath(subPath string, parentPath string) bool {
+	if parentPath == "/" {
+		return true
+	}
+	return strings.HasPrefix(subPath, parentPath+"/")
+}
