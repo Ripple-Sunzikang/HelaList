@@ -69,10 +69,10 @@ func (m *MemoryLockSystem) Confirm(now time.Time, name0 string, name1 string, co
 	var heldLocks []*lockNode // 存储1或2个要上锁的文件/文件夹的锁节点
 
 	if name0 != "" {
-		if lock, exists := m.locksByPath[name0]; exists {
+		if lock, exists := m.isPathLocked(name0); exists {
 
 			// 这里本应有一个Condition验证的环节的，但是我在写demo,所以先搁置
-			if !m.ValidateCOnditions(lock, conditions) {
+			if !m.ValidateConditions(lock, conditions) {
 				return nil, fmt.Errorf("路径 %s 的锁条件验证失败", name0)
 			}
 			if lock.held {
@@ -85,11 +85,15 @@ func (m *MemoryLockSystem) Confirm(now time.Time, name0 string, name1 string, co
 		}
 	}
 
-	if name1 != "" {
-		if lock, exists := m.locksByPath[name1]; exists {
+	if name1 != "" && name1 != name0 {
+		if lock, exists := m.isPathLocked(name1); exists {
 
 			// 这里本应有一个Condition验证的环节的，但是我在写demo,所以先搁置
-			if !m.ValidateCOnditions(lock, conditions) {
+			if !m.ValidateConditions(lock, conditions) {
+				// 回滚，因为你在name1处失败了，所以你得把name0处的held给置回原位
+				for _, heldLock := range heldLocks {
+					heldLock.held = false
+				}
 				return nil, fmt.Errorf("路径 %s 的锁条件验证失败", name1)
 			}
 			if lock.held {
@@ -118,9 +122,18 @@ func (m *MemoryLockSystem) Create(now time.Time, lockDetails LockDetails) (uuid.
 	m.CleanExpiredLocks(now)
 
 	// 检查路径有没有被锁
-	if lock, exists := m.locksByPath[lockDetails.RootPath]; exists {
-		if !lock.held && now.Before(lock.expiry) {
-			return uuid.Nil, fmt.Errorf("路径 %s 已经被锁定了", lockDetails.RootPath)
+	if lock, exists := m.isPathLocked(lockDetails.RootPath); exists {
+		if now.Before(lock.expiry) {
+			return uuid.Nil, fmt.Errorf("路径 %s 或其父节点已经被锁定了", lockDetails.RootPath)
+		}
+	}
+
+	// 假如你要创建的是深度锁，那你就需要考虑该深度锁下面的子路径，是不是已经被锁定了
+	if !lockDetails.ZeroDepth {
+		for path, locks := range m.locksByPath {
+			if isSubPath(path, lockDetails.RootPath) && now.Before(locks.expiry) {
+				return uuid.Nil, fmt.Errorf("无法创建深度锁，子路径 %s 已被锁定", path)
+			}
 		}
 	}
 
@@ -185,7 +198,7 @@ func (m *MemoryLockSystem) CleanExpiredLocks(now time.Time) {
 	}
 }
 
-func (m *MemoryLockSystem) ValidateCOnditions(lock *lockNode, conditions []Condition) bool {
+func (m *MemoryLockSystem) ValidateConditions(lock *lockNode, conditions []Condition) bool {
 	for _, condition := range conditions {
 		hasToken := (lock.token == condition.Token)
 		if condition.Not {
