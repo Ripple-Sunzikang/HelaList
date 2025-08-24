@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 /*
@@ -28,19 +29,40 @@ type FileSystem interface {
 	OpenWriter(path string) (io.WriteCloser, error) // 写入文件内容
 }
 
+// 别忘了属性命名大写表示public
+/*
+依旧是课堂时间，Prefix在WebDAV中至关重要。
+假如用户的请求是GET http:localhost:8080/webdav/files/test.txt.
+go语言的http功能在解析之后，得到的是/webdav/files/test.txt
+但是我们只需要webdav后面，不需要"/webdav"这个多余的前缀
+即, /files/test.txt部分，才是我们服务器内处理的部分。这也是为什么我们会设计一个StripPrefix的函数，用来分割用户请求的http链接
+那么如何划分呢？依据的是Handler中的Prefix属性
+*/
 type Handler struct {
-	fileSystem FileSystem  // 文件系统
-	lockSystem *LockSystem // 你已经实现的锁结构
-	logger     *log.Logger // 日志
+	Prefix     string      // Handler的前缀，此处应默认为/webdav
+	LockSystem *LockSystem // 你已经实现的锁结构
+	Logger     *log.Logger // 日志
 }
 
 // 创建Handler
-func NewHandler(fs FileSystem, lockSys *LockSystem) *Handler {
+func NewHandler(lockSys *LockSystem) *Handler {
 	return &Handler{
-		fileSystem: fs,
-		lockSystem: lockSys,
-		logger:     log.New(os.Stdout, "WebDAV: ", log.LstdFlags),
+		Prefix:     "/webdav",
+		LockSystem: lockSys,
+		Logger:     log.New(os.Stdout, "WebDAV: ", log.LstdFlags),
 	}
+}
+
+// 处理客户端请求前缀
+func (h *Handler) StripPrefix(p string) (string, int, error) {
+	if h.Prefix == "" {
+		return p, http.StatusOK, nil // 错误检测，规范用，实际上根本不会有这种错误。
+	}
+
+	if r := strings.TrimPrefix(p, h.Prefix); len(r) < len(p) {
+		return r, http.StatusOK, nil
+	}
+	return p, http.StatusNotFound, errors.New("oops, 你webdav的前缀不匹配")
 }
 
 // HTTP入口
@@ -48,9 +70,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 如果都没连上，默认连接失败
 	status, err := http.StatusBadRequest, errors.New("一开始就没连上")
 
-	// 有一个缓存是好的，你需要设计一个缓存，于是就有了buffered_response
+	brw := newBufferedResponseWriter() // 写回客户端的缓冲
+	useBrw := true                     // 在处理GET等请求时，若待处理的文件过大，使用brw的话会给服务器内存带来巨大压力。所以有时需要禁止使用brw
 
-	if h.lockSystem == nil {
+	if h.LockSystem == nil {
 		status, err = http.StatusInternalServerError, errors.New("你的锁坏了导致没连上")
 	} else {
 		switch r.Method {
@@ -59,7 +82,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "GET", "HEAD", "POST":
 		// 执行GET、HEAD、POST操作
 		case "DELETE":
-			// 执行DELETE操作handle
+			status, err := h.HandleDelete(brw, r)
 		case "PUT":
 			// 执行PUT操作handle
 		case "MKCOL":
@@ -77,4 +100,21 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		}
 	}
+
+	// 善后操作
+	if status != 0 {
+		w.WriteHeader(status)
+		if status != http.StatusNoContent {
+			w.Write([]byte(http.StatusText(status))) // 若响应到了内容，则直接写入ResponseWriter
+		}
+	} else if useBrw {
+		brw.WriteToResponse(w) // 若使用缓冲，直接将缓冲导入ResponseWriter
+	}
+	if h.Logger != nil && err != nil {
+		h.Logger.Printf("请求失败: %s %s, 发生错误: %v", r.Method, r.URL.Path, err) // 我知道我写的error和log依托。后面再改！
+	}
+}
+
+func (h *Handler) HandleDelete(brw bufferedResponseWriter, w http.ResponseWriter) (status int, err error) {
+
 }
