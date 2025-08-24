@@ -23,6 +23,16 @@ type Meta interface {
 type Reader interface {
 }
 
+// 获取根目录
+type GetRooter interface {
+	GetRoot(ctx context.Context) (model.Obj, error)
+}
+
+// 通过文件路径，检索文件信息
+type GetObjInfo interface {
+	GetObjInfo(ctx context.Context, path string) (model.Obj, error)
+}
+
 // 写操作相关接口(好多)
 /*
 注意，因为Obj包含了文件/文件夹两种情况，
@@ -47,3 +57,10 @@ type Copy interface {
 type Remove interface {
 	Remove(ctx context.Context, obj model.Obj) error
 }
+
+/*
+// Put用于上传文件，而上传/下载文件这种事往往复杂，还需要做文件流
+type Put interface {
+	Put(ctx context.Context, destiDIr model.Obj, )
+}
+*/
