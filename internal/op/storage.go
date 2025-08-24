@@ -2,7 +2,14 @@ package op
 
 import (
 	"HelaList/internal/model"
-	"HelaList/internal/driver"
+	"HelaList/internal/pkg"
+	"context"
+	"sort"
+	"strings"
+	"time"
+
+	mapset "github.com/deckarep/golang-set/v2"
+	"github.com/google/uuid"
 )
 
 // 将Storage保存到数据库，并返回数据库的uuid
@@ -12,10 +19,44 @@ func CreateStorage(ctx context.Context, storage model.Storage) (uuid.UUID, error
 	// MountPath挂载点不用动，因为你还没写Path的规范化函数。
 	driverName := storage.Driver
 	driverNew, err := GetDriver(driverName)
+
 }
 
-// 起名恐惧症了，因为
+var storagesMap = pkg.NewSyncStorageMap()
+
 func GetVirtualObjsByPath(path string) []model.Obj {
 	objs := make([]model.Obj, 0)
-	storages :=
+	storages := storagesMap.Values()
+
+	// 排序，按Order、MountPath顺序排列
+	sort.Slice(storages, func(i int, j int) bool {
+		if storages[i].GetStorage().Order == storages[j].GetStorage().Order {
+			return storages[i].GetStorage().MountPath < storages[j].GetStorage().MountPath
+		}
+		return storages[i].GetStorage().Order < storages[j].GetStorage().Order
+	})
+
+	mapSet := mapset.NewSet[string]()
+
+	for _, v := range storages {
+		mountPath := v.GetStorage().MountPath
+		/*
+			// 需要过滤掉不需要的存储挂载路径，只保留path的直接子目录的挂载点，所以用一个if判别
+			// 但是IsSubPath你只在lock.go里实现了一个内部函数。
+			if len(path) >= len(mountPath) || IsSubPath(path, mountPath) {
+				continue
+			}
+		*/
+		// 从挂载路径中提取相对于path的第一级目录名
+		name := strings.SplitN(strings.TrimPrefix(mountPath[len(path):], "/"), "/", 2)[0]
+		if mapSet.Add(name) {
+			objs = append(objs, &model.Object{
+				Name:         name,
+				Size:         0,
+				ModifiedTime: v.GetStorage().ModifiedTime,
+				IsFolder:     true,
+			})
+		}
+	}
+	return objs
 }

@@ -1,4 +1,4 @@
-package model
+package pkg
 
 import (
 	"HelaList/internal/driver"
