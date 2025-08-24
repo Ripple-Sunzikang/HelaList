@@ -29,14 +29,14 @@ func UpdateUser(user *model.User) error {
 }
 
 func DeleteUserById(id uuid.UUID) error {
-	if err := bootstrap.Db.Delete(&model.Mount{}, id).Error; err != nil {
+	if err := bootstrap.Db.Delete(&model.User{}, id).Error; err != nil {
 		return fmt.Errorf("failed to delete mount: %w", err)
 	}
 	return nil
 }
 
 func DeleteUserByUsername(username string) error {
-	if err := bootstrap.Db.Delete(&model.Mount{}, username).Error; err != nil {
+	if err := bootstrap.Db.Delete(&model.User{}, username).Error; err != nil {
 		return fmt.Errorf("failed to delete mount: %w", err)
 	}
 	return nil
