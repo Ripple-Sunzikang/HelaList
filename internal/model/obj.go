@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 /*
 严格来说，Obj接口才是文件最抽象的形式。其次才是Object。
@@ -12,4 +16,6 @@ type Obj interface {
 	GetCreatedTime() time.Time
 	IsDir() bool
 	// GetHash() // 哈希还没实现，所以暂时不做
+	GetId() uuid.UUID
+	GetPath() string
 }

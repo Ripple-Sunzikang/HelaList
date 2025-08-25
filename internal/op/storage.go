@@ -24,6 +24,7 @@ func CreateStorage(ctx context.Context, storage model.Storage) (uuid.UUID, error
 
 var storagesMap = pkg.NewSyncStorageMap()
 
+// 根据给定路径，返回该路径下的所有虚拟文件夹
 func GetVirtualObjsByPath(path string) []model.Obj {
 	objs := make([]model.Obj, 0)
 	storages := storagesMap.Values()
@@ -36,6 +37,7 @@ func GetVirtualObjsByPath(path string) []model.Obj {
 		return storages[i].GetStorage().Order < storages[j].GetStorage().Order
 	})
 
+	// 用于存放路径下的文件名
 	mapSet := mapset.NewSet[string]()
 
 	for _, v := range storages {
@@ -47,7 +49,7 @@ func GetVirtualObjsByPath(path string) []model.Obj {
 				continue
 			}
 		*/
-		// 从挂载路径中提取相对于path的第一级目录名
+		// 从挂载路径中提取相对于path的第一级目录名，也就是路径下的文件名
 		name := strings.SplitN(strings.TrimPrefix(mountPath[len(path):], "/"), "/", 2)[0]
 		if mapSet.Add(name) {
 			objs = append(objs, &model.Object{

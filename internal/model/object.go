@@ -2,10 +2,12 @@ package model
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Object struct {
-	Id           string
+	Id           uuid.UUID
 	Path         string
 	Name         string
 	Size         int64
@@ -38,7 +40,7 @@ func (o *Object) IsDir() bool {
 	return o.IsFolder
 }
 
-func (o *Object) GetId() string {
+func (o *Object) GetId() uuid.UUID {
 	return o.Id
 }
 
