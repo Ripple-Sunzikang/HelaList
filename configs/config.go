@@ -1,4 +1,4 @@
-package config
+package configs
 
 type Database struct {
 	Type     string `json:"type" env:"TYPE"`

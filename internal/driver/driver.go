@@ -3,6 +3,8 @@ package driver
 import (
 	"HelaList/internal/model"
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type Driver interface {
@@ -17,15 +19,26 @@ type Meta interface {
 	*/
 	GetStorage() *model.Storage
 	SetStorage(model.Storage)
+	//
+	GetAddition() Additional
 }
+
+// 用于JSON
+type Additional interface{}
 
 // 用于读取路径下的所有文件
 type Reader interface {
+	List(ctx context.Context, dir model.Obj, args model.ListArgs) ([]model.Obj, error)
 }
 
 // 获取根目录
 type GetRooter interface {
 	GetRoot(ctx context.Context) (model.Obj, error)
+}
+
+// 通过路径查找文件
+type Getter interface {
+	Get(ctx context.Context, path string) (model.Obj, error)
 }
 
 // 通过文件路径，检索文件信息
@@ -64,3 +77,31 @@ type Put interface {
 	Put(ctx context.Context, destiDIr model.Obj, )
 }
 */
+
+type IRootPath interface {
+	GetRootPath() string
+}
+
+type IRootId interface {
+	GetRootId() uuid.UUID
+}
+
+type RootPath struct {
+	RootFolderPath string `json:"root_folder_path"`
+}
+
+type RootID struct {
+	RootFolderID uuid.UUID `json:"root_folder_id"`
+}
+
+func (r RootPath) GetRootPath() string {
+	return r.RootFolderPath
+}
+
+func (r *RootPath) SetRootPath(path string) {
+	r.RootFolderPath = path
+}
+
+func (r RootID) GetRootId() uuid.UUID {
+	return r.RootFolderID
+}

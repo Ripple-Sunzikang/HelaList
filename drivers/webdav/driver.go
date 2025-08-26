@@ -38,6 +38,7 @@ func (wd *WebDav) setClient() error {
 }
 
 // 将一个切片，通过某种函数转换关系，转换为另一个切片
+// 因为你需要把gowebdav的文件类型转换为你的文件类型
 func ConvertSlices[S any, D any](sourceS []S, convert func(sourceS S) (D, error)) ([]D, error) {
 	res := make([]D, 0, len(sourceS))
 	for i := range sourceS {
@@ -100,6 +101,18 @@ func (wd *WebDav) Copy(ctx context.Context, sourceObj, destiDir model.Obj) error
 func (wd *WebDav) Remove(ctx context.Context, obj model.Obj) error {
 	return wd.client.RemoveAll(ctx, getPath(obj))
 }
+
+// 文件链接的事情等会儿再说，你连link的类型都没写呢。
+// func (d *WebDav) Link(ctx context.Context, file model.Obj, args model.LinkArgs) (*model.Link, error) {
+// 	url, header, err := d.client.Link(file.GetPath())
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return &model.Link{
+// 		URL:    url,
+// 		Header: header,
+// 	}, nil
+// }
 
 // 上传的事情等会儿再说
 // func (wd *WebDav) Put(ctx context.Context, dstDir model.Obj, s model.FileStreamer, up driver.UpdateProgress) error {
