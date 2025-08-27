@@ -11,6 +11,7 @@ func Init() *gin.Engine {
 	r := gin.Default()
 	registerUserRoutes(r)
 	registerStorageRoutes(r)
+	registerMetaRoutes(r)
 	return r
 }
 
@@ -36,5 +37,19 @@ func registerStorageRoutes(r *gin.Engine) {
 		storage.GET("/has/:mountPath", handler.HasStorageHandler)
 		storage.GET("/:mountPath", handler.GetStorageByMountPathHandler)
 		storage.GET("/virtual-files", handler.GetStorageVirtualFilesByPathHandler)
+	}
+}
+
+func registerMetaRoutes(r *gin.Engine) {
+	api := r.Group("/api")
+	meta := api.Group("/meta")
+	{
+		meta.POST("/create", handler.CreateMetaHandler)
+		meta.POST("/update", handler.UpdateMetaHandler)
+		meta.DELETE("/:id", handler.DeleteMetaByIdHandler)
+		meta.GET("/:id", handler.GetMetaByIdHandler)
+		meta.GET("/path/:path", handler.GetMetaByPathHandler)
+		meta.GET("/nearest/:path", handler.GetNearestMetaHandler)
+		meta.GET("", handler.GetMetasHandler)
 	}
 }
