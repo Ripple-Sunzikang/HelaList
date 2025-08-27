@@ -10,6 +10,7 @@ import (
 func Init() *gin.Engine {
 	r := gin.Default()
 	registerUserRoutes(r)
+	registerStorageRoutes(r)
 	return r
 }
 
@@ -21,5 +22,19 @@ func registerUserRoutes(r *gin.Engine) {
 		user.POST("/create", handler.CreateUser)
 		user.POST("/update", handler.UpdateUser)
 		user.POST("/delete", handler.DeleteUser)
+	}
+}
+
+func registerStorageRoutes(r *gin.Engine) {
+	api := r.Group("/api")
+	storage := api.Group("/storage")
+	{
+		storage.POST("/create", handler.CreateStorageHandler)
+		storage.POST("/update", handler.UpdateStorageHandler)
+		storage.POST("/load", handler.LoadStorageHandler)
+		storage.GET("/all", handler.GetAllStoragesHandler)
+		storage.GET("/has/:mountPath", handler.HasStorageHandler)
+		storage.GET("/:mountPath", handler.GetStorageByMountPathHandler)
+		storage.GET("/virtual-files", handler.GetStorageVirtualFilesByPathHandler)
 	}
 }

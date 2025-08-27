@@ -38,9 +38,9 @@ func list(ctx context.Context, path string, args *ListArgs) ([]model.Obj, error)
 	}
 
 	om := model.NewObjMerge()
-	if whetherHide(user, meta, path) {
-		om.InitHideReg(meta.Hide)
-	}
+	// if whetherHide(user, meta, path) {
+	// 	om.InitHideReg(meta.Hide)
+	// }
 	objs := om.Merge(_objs, virtualFiles...)
 	return objs, nil
 }
