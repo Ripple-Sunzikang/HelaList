@@ -10,7 +10,6 @@ import (
 	uuid "github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
 	"gorm.io/gorm"
-	_ "gorm.io/gorm"
 )
 
 type User struct {
@@ -19,11 +18,13 @@ type User struct {
 	Id           uuid.UUID `gorm:"type:uuid;primarykey" json:"id"`
 	Username     string    `gorm:"unique;not null;size:50" json:"username"`
 	Email        string    `gorm:"unique;not null;size:100" json:"email"`
-	PasswordHash string    `gorm:"not null" json:"-"`        // 密码哈希值
-	Salt         string    `gorm:"unique;not null" json:"-"` // 每个用户的Salt唯一，防止彩虹表攻击
-	Password     string    `gorm:"-" json:"password"`        // 明文密码
-	BasePath     string    `json:"base_path"`                // 用户的基础路径
-	Identity     int       `gorm:"not null" json:"identity"` // 区分管理员和用户，0是Admin，1是Guest
+	PasswordHash string    `gorm:"not null" json:"-"`                      // 密码哈希值
+	Salt         string    `gorm:"unique;not null" json:"-"`               // 每个用户的Salt唯一，防止彩虹表攻击
+	Password     string    `gorm:"-" json:"password"`                      // 明文密码
+	BasePath     string    `json:"base_path"`                              // 用户的基础路径
+	Identity     int       `gorm:"not null" json:"identity"`               // 区分管理员和用户，0是Admin，1是Guest
+	Disabled     bool      `gorm:"not null;default:false" json:"disabled"` // 用户是否被禁用
+	PasswordTS   int64     `json:"password_ts"`                            // 密码时间戳，用于验证密码是否更改
 }
 
 // 用于指定模型对应的数据库表名，模型的属性也会自动转化为列。默认为蛇形复数形式。
@@ -54,6 +55,10 @@ func (u *User) IsAdmin() bool {
 
 func (u *User) IsGuest() bool {
 	return u.Identity == GUEST
+}
+
+func (u *User) CanWrite() bool {
+	return !u.Disabled && (u.Identity == ADMIN || u.Identity == GENERAL)
 }
 
 // argon2密码加密所需参数

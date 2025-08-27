@@ -103,7 +103,7 @@ type Addition struct {
 }
 
 var config = driver.Config{
-	Name:        "WebDav",
+	Name:        "webdav",
 	LocalSort:   true,
 	OnlyProxy:   true,
 	DefaultRoot: "/",

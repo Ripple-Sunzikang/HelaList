@@ -2,6 +2,7 @@ package server
 
 import (
 	"HelaList/internal/server/handler"
+	"HelaList/internal/server/middlewares"
 	"HelaList/internal/server/webdav"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,7 @@ func Init() *gin.Engine {
 	registerUserRoutes(r)
 	registerStorageRoutes(r)
 	registerMetaRoutes(r)
+	registerFsRoutes(r)
 	registerWebdavRoutes(r)
 	return r
 }
@@ -21,10 +23,12 @@ func registerUserRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	user := api.Group("/user")
 	{
-		user.GET("/get", handler.GetUser)
+		user.POST("/login", handler.Login)   // 登录接口
+		user.POST("/logout", handler.Logout) // 登出接口
+		user.GET("/get", middlewares.Auth(true), handler.GetUser)
 		user.POST("/create", handler.CreateUser)
-		user.POST("/update", handler.UpdateUser)
-		user.POST("/delete", handler.DeleteUser)
+		user.POST("/update", middlewares.Auth(true), handler.UpdateUser)
+		user.POST("/delete", middlewares.Auth(true), handler.DeleteUser)
 	}
 }
 
@@ -67,4 +71,15 @@ func registerWebdavRoutes(r *gin.Engine) {
 	// 使用 gin.WrapH 将 http.Handler 包装为 Gin 中间件
 	// 支持 WebDAV 方法：OPTIONS, DELETE, MKCOL
 	r.Any("/webdav/*path", gin.WrapH(webdavHandler))
+}
+
+func registerFsRoutes(r *gin.Engine) {
+	api := r.Group("/api")
+	fs := api.Group("/fs")
+	fs.Use(middlewares.Auth(false)) // 应用认证中间件，false表示不需要强制认证
+	{
+		fs.GET("/list/*path", handler.FsListHandler)
+		fs.GET("/dirs/*path", handler.FsDirsHandler)
+		fs.GET("/get/*path", handler.FsGetHandler)
+	}
 }

@@ -13,7 +13,11 @@ type Database struct {
 }
 
 type Config struct {
-	Database Database `json:"database" envPrefix:"DB_"`
+	SiteURL        string   `json:"site_url" env:"SITE_URL"`
+	Cdn            string   `json:"cdn" env:"CDN"`
+	JwtSecret      string   `json:"jwt_secret" env:"JWT_SECRET"`
+	TokenExpiresIn int      `json:"token_expires_in" env:"TOKEN_EXPIRES_IN"`
+	Database       Database `json:"database" envPrefix:"DB_"`
 }
 
 func DefaultConfig(dataDir string) *Config {
