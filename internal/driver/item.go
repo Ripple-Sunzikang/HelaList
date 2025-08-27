@@ -1,5 +1,7 @@
 package driver
 
+import "github.com/google/uuid"
+
 // 用于JSON
 type Additional interface{}
 
@@ -23,7 +25,7 @@ type IRootPath interface {
 }
 
 type IRootId interface {
-	GetRootId() string
+	GetRootId() uuid.UUID
 }
 
 type RootPath struct {

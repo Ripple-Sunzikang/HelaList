@@ -3,41 +3,52 @@ package repository
 import (
 	"HelaList/internal/bootstrap"
 	"HelaList/internal/model"
-	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 )
 
 // 与数据库交互得到用户数据
 /*
 其实这带出来一个问题，就是数据库内容的检验应该放在哪里。
 */
-func CreateUser(user *model.User) error {
-	result := bootstrap.Db.Create(user)
-	if result.Error != nil {
-		return fmt.Errorf("failed to create user: %w", result.Error)
-	}
+func CreateUser(u *model.User) error {
+	return errors.WithStack(bootstrap.Db.Create(u).Error)
 	return nil
 }
 
-func UpdateUser(user *model.User) error {
-	result := bootstrap.Db.Save(user)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update user: %w", result.Error)
+func UpdateUser(u *model.User) error {
+	return errors.WithStack(bootstrap.Db.Save(u).Error)
+}
+
+func GetUserByIdentity(identity int) (*model.User, error) {
+	user := model.User{Identity: identity}
+	if err := bootstrap.Db.Where(user).Take(&user).Error; err != nil {
+		return nil, err
 	}
-	return nil
+	return &user, nil
+}
+
+func GetUserByName(username string) (*model.User, error) {
+	user := model.User{Username: username}
+	if err := bootstrap.Db.Where(user).First(&user).Error; err != nil {
+		return nil, errors.Wrapf(err, "failed find user")
+	}
+	return &user, nil
+}
+
+func GetUserById(id uuid.UUID) (*model.User, error) {
+	var u model.User
+	if err := bootstrap.Db.First(&u, id).Error; err != nil {
+		return nil, errors.Wrapf(err, "failed get old user")
+	}
+	return &u, nil
 }
 
 func DeleteUserById(id uuid.UUID) error {
-	if err := bootstrap.Db.Delete(&model.User{}, id).Error; err != nil {
-		return fmt.Errorf("failed to delete mount: %w", err)
-	}
-	return nil
+	return errors.WithStack(bootstrap.Db.Delete(&model.User{}, id).Error)
 }
 
 func DeleteUserByUsername(username string) error {
-	if err := bootstrap.Db.Delete(&model.User{}, username).Error; err != nil {
-		return fmt.Errorf("failed to delete mount: %w", err)
-	}
-	return nil
+	return errors.WithStack(bootstrap.Db.Delete(&model.User{}, username).Error)
 }

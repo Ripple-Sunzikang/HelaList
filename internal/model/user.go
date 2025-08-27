@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 	uuid "github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
 	"gorm.io/gorm"
@@ -21,6 +22,7 @@ type User struct {
 	PasswordHash string    `gorm:"not null" json:"-"`        // 密码哈希值
 	Salt         string    `gorm:"unique;not null" json:"-"` // 每个用户的Salt唯一，防止彩虹表攻击
 	Password     string    `gorm:"-" json:"password"`        // 明文密码
+	BasePath     string    `json:"base_path"`                // 用户的基础路径
 	Identity     int       `gorm:"not null" json:"identity"` // 区分管理员和用户，0是Admin，1是Guest
 }
 
@@ -101,4 +103,9 @@ func (u *User) CheckPassword(password string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// 把请求path加到BasePath的后缀
+func (u *User) JoinPath(reqPath string) (string, error) {
+	return utils.JoinBasePath(u.BasePath, reqPath)
 }

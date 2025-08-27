@@ -3,6 +3,7 @@ package main
 import (
 	"HelaList/internal/bootstrap"
 	"HelaList/internal/model"
+	"HelaList/internal/server"
 	"log"
 )
 
@@ -14,6 +15,11 @@ func main() {
 		log.Fatal("数据库迁移失败: %v", err)
 	}
 	log.Println("数据库迁移成功！")
+
+	r := server.Init()
+	if err := r.Run(); err != nil {
+		log.Fatalf("启动服务器失败: %v", err)
+	}
 
 	// newUser := &model.User{
 	// 	Username: "suzuki",
