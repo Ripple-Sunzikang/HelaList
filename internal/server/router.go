@@ -2,6 +2,7 @@ package server
 
 import (
 	"HelaList/internal/server/handler"
+	"HelaList/internal/server/webdav"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,6 +13,7 @@ func Init() *gin.Engine {
 	registerUserRoutes(r)
 	registerStorageRoutes(r)
 	registerMetaRoutes(r)
+	registerWebdavRoutes(r)
 	return r
 }
 
@@ -52,4 +54,17 @@ func registerMetaRoutes(r *gin.Engine) {
 		meta.GET("/nearest/:path", handler.GetNearestMetaHandler)
 		meta.GET("", handler.GetMetasHandler)
 	}
+}
+
+func registerWebdavRoutes(r *gin.Engine) {
+	// 创建 WebDAV Handler 实例
+	webdavHandler := &webdav.Handler{
+		Prefix:     "/webdav",
+		LockSystem: webdav.NewMemLS(), // 使用内存锁系统
+		// Logger: 可选的日志函数，用于记录错误
+	}
+
+	// 使用 gin.WrapH 将 http.Handler 包装为 Gin 中间件
+	// 支持 WebDAV 方法：OPTIONS, DELETE, MKCOL
+	r.Any("/webdav/*path", gin.WrapH(webdavHandler))
 }

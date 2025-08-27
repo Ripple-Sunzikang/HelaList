@@ -3,12 +3,13 @@ package fs
 import (
 	"HelaList/internal/model"
 	"context"
+	"fmt"
 
 	"HelaList/configs"
 	"HelaList/internal/op"
 
+	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 	"github.com/pkg/errors"
-	"google.golang.org/appengine/log"
 )
 
 // List files
@@ -29,7 +30,7 @@ func list(ctx context.Context, path string, args *ListArgs) ([]model.Obj, error)
 		})
 		if err != nil {
 			if !args.NoLog {
-				log.Errorf("fs/list: %+v", err)
+				fmt.Errorf("fs/list: %+v", err)
 			}
 			if len(virtualFiles) == 0 {
 				return nil, errors.WithMessage(err, "failed get objs")
@@ -38,9 +39,30 @@ func list(ctx context.Context, path string, args *ListArgs) ([]model.Obj, error)
 	}
 
 	om := model.NewObjMerge()
-	// if whetherHide(user, meta, path) {
-	// 	om.InitHideReg(meta.Hide)
-	// }
+	if whetherHide(user, meta, path) {
+		om.InitHideReg(meta.Hide)
+	}
 	objs := om.Merge(_objs, virtualFiles...)
 	return objs, nil
+}
+
+func whetherHide(user *model.User, meta *model.Meta, path string) bool {
+	// if is admin, don't hide
+	if user == nil {
+		return false
+	}
+	// if meta is nil, don't hide
+	if meta == nil {
+		return false
+	}
+	// if meta.Hide is empty, don't hide
+	if meta.Hide == "" {
+		return false
+	}
+	// if meta doesn't apply to sub_folder, don't hide
+	if !utils.PathEqual(meta.Path, path) && !meta.HSub {
+		return false
+	}
+	// if is guest, hide
+	return true
 }

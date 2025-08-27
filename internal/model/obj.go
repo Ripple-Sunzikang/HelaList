@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	mapset "github.com/deckarep/golang-set/v2"
+	"github.com/dlclark/regexp2"
 	"github.com/google/uuid"
 )
 
@@ -62,4 +64,52 @@ func WrapObjsName(objs []Obj) {
 
 type SetPath interface {
 	SetPath(path string)
+}
+
+// Merge
+func NewObjMerge() *ObjMerge {
+	return &ObjMerge{
+		set: mapset.NewSet[string](),
+	}
+}
+
+type ObjMerge struct {
+	regs []*regexp2.Regexp
+	set  mapset.Set[string]
+}
+
+func (om *ObjMerge) Merge(objs []Obj, objs_ ...Obj) []Obj {
+	newObjs := make([]Obj, 0, len(objs)+len(objs_))
+	newObjs = om.insertObjs(om.insertObjs(newObjs, objs...), objs_...)
+	return newObjs
+}
+
+func (om *ObjMerge) insertObjs(objs []Obj, objs_ ...Obj) []Obj {
+	for _, obj := range objs_ {
+		if om.clickObj(obj) {
+			objs = append(objs, obj)
+		}
+	}
+	return objs
+}
+
+func (om *ObjMerge) clickObj(obj Obj) bool {
+	for _, reg := range om.regs {
+		if isMatch, _ := reg.MatchString(obj.GetName()); isMatch {
+			return false
+		}
+	}
+	return om.set.Add(obj.GetName())
+}
+
+func (om *ObjMerge) InitHideReg(hides string) {
+	rs := strings.Split(hides, "\n")
+	om.regs = make([]*regexp2.Regexp, 0, len(rs))
+	for _, r := range rs {
+		om.regs = append(om.regs, regexp2.MustCompile(r, regexp2.None))
+	}
+}
+
+func (om *ObjMerge) Reset() {
+	om.set.Clear()
 }

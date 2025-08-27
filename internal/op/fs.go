@@ -1,16 +1,19 @@
 package op
 
 import (
+	"HelaList/configs"
 	"HelaList/internal/driver"
 	"HelaList/internal/model"
 	"context"
 	"slices"
+	"strings"
 	"time"
 
 	stdpath "path"
 
 	"github.com/OpenListTeam/OpenList/v4/pkg/generic_sync"
 	"github.com/OpenListTeam/OpenList/v4/pkg/singleflight"
+	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 	"github.com/OpenListTeam/go-cache"
 	"github.com/pkg/errors"
 )
@@ -235,4 +238,226 @@ func GetUnwrap(ctx context.Context, storage driver.Driver, path string) (model.O
 		return nil, err
 	}
 	return model.UnwrapObj(obj), err
+}
+
+var mkdirG singleflight.Group[interface{}]
+
+func MakeDir(ctx context.Context, storage driver.Driver, path string, lazyCache ...bool) error {
+	if storage.Config().CheckStatus && storage.GetStorage().Status != configs.WORK {
+		return errors.Errorf("storage not init: %s", storage.GetStorage().Status)
+	}
+	path = utils.FixAndCleanPath(path)
+	key := Key(storage, path)
+	_, err, _ := mkdirG.Do(key, func() (interface{}, error) {
+		// check if dir exists
+		f, err := GetUnwrap(ctx, storage, path)
+		if err != nil {
+			if strings.Contains(err.Error(), "object not found") {
+				parentPath, dirName := stdpath.Split(path)
+				err = MakeDir(ctx, storage, parentPath)
+				if err != nil {
+					return nil, errors.WithMessagef(err, "failed to make parent dir [%s]", parentPath)
+				}
+				parentDir, err := GetUnwrap(ctx, storage, parentPath)
+				// this should not happen
+				if err != nil {
+					return nil, errors.WithMessagef(err, "failed to get parent dir [%s]", parentPath)
+				}
+
+				switch s := storage.(type) {
+				case driver.MkdirResult:
+					var newObj model.Obj
+					newObj, err = s.MakeDir(ctx, parentDir, dirName)
+					if err == nil {
+						if newObj != nil {
+							addCacheObj(storage, parentPath, model.WrapObjName(newObj))
+						} else if !utils.IsBool(lazyCache...) {
+							DeleteCache(storage, parentPath)
+						}
+					}
+				case driver.Mkdir:
+					err = s.MakeDir(ctx, parentDir, dirName)
+					if err == nil && !utils.IsBool(lazyCache...) {
+						DeleteCache(storage, parentPath)
+					}
+				default:
+					return nil, errors.New("not implemented")
+				}
+				return nil, errors.WithStack(err)
+			}
+			return nil, errors.WithMessage(err, "failed to check if dir exists")
+		}
+		// dir exists
+		if f.IsDir() {
+			return nil, nil
+		}
+		// dir to make is a file
+		return nil, errors.New("file exists")
+	})
+	return err
+}
+
+func Move(ctx context.Context, storage driver.Driver, srcPath, dstDirPath string, lazyCache ...bool) error {
+	if storage.Config().CheckStatus && storage.GetStorage().Status != configs.WORK {
+		return errors.Errorf("storage not init: %s", storage.GetStorage().Status)
+	}
+	srcPath = utils.FixAndCleanPath(srcPath)
+	dstDirPath = utils.FixAndCleanPath(dstDirPath)
+	srcRawObj, err := Get(ctx, storage, srcPath)
+	if err != nil {
+		return errors.WithMessage(err, "failed to get src object")
+	}
+	srcObj := model.UnwrapObj(srcRawObj)
+	dstDir, err := GetUnwrap(ctx, storage, dstDirPath)
+	if err != nil {
+		return errors.WithMessage(err, "failed to get dst dir")
+	}
+	srcDirPath := stdpath.Dir(srcPath)
+
+	switch s := storage.(type) {
+	case driver.MoveResult:
+		var newObj model.Obj
+		newObj, err = s.Move(ctx, srcObj, dstDir)
+		if err == nil {
+			delCacheObj(storage, srcDirPath, srcRawObj)
+			if newObj != nil {
+				addCacheObj(storage, dstDirPath, model.WrapObjName(newObj))
+			} else if !utils.IsBool(lazyCache...) {
+				DeleteCache(storage, dstDirPath)
+			}
+		}
+	case driver.Move:
+		err = s.Move(ctx, srcObj, dstDir)
+		if err == nil {
+			delCacheObj(storage, srcDirPath, srcRawObj)
+			if !utils.IsBool(lazyCache...) {
+				DeleteCache(storage, dstDirPath)
+			}
+		}
+	default:
+		return errors.New("not implemented")
+	}
+	return errors.WithStack(err)
+}
+
+func Rename(ctx context.Context, storage driver.Driver, srcPath, dstName string, lazyCache ...bool) error {
+	if storage.Config().CheckStatus && storage.GetStorage().Status != configs.WORK {
+		return errors.Errorf("storage not init: %s", storage.GetStorage().Status)
+	}
+	srcPath = utils.FixAndCleanPath(srcPath)
+	srcRawObj, err := Get(ctx, storage, srcPath)
+	if err != nil {
+		return errors.WithMessage(err, "failed to get src object")
+	}
+	srcObj := model.UnwrapObj(srcRawObj)
+	srcDirPath := stdpath.Dir(srcPath)
+
+	switch s := storage.(type) {
+	case driver.RenameResult:
+		var newObj model.Obj
+		newObj, err = s.Rename(ctx, srcObj, dstName)
+		if err == nil {
+			if newObj != nil {
+				updateCacheObj(storage, srcDirPath, srcRawObj, model.WrapObjName(newObj))
+			} else if !utils.IsBool(lazyCache...) {
+				DeleteCache(storage, srcDirPath)
+			}
+		}
+	case driver.Rename:
+		err = s.Rename(ctx, srcObj, dstName)
+		if err == nil && !utils.IsBool(lazyCache...) {
+			DeleteCache(storage, srcDirPath)
+		}
+	default:
+		return errors.New("not complemented")
+	}
+	return errors.WithStack(err)
+}
+
+func Copy(ctx context.Context, storage driver.Driver, srcPath, dstDirPath string, lazyCache ...bool) error {
+	if storage.Config().CheckStatus && storage.GetStorage().Status != configs.WORK {
+		return errors.Errorf("storage not init: %s", storage.GetStorage().Status)
+	}
+	srcPath = utils.FixAndCleanPath(srcPath)
+	dstDirPath = utils.FixAndCleanPath(dstDirPath)
+	srcObj, err := GetUnwrap(ctx, storage, srcPath)
+	if err != nil {
+		return errors.WithMessage(err, "failed to get src object")
+	}
+	dstDir, err := GetUnwrap(ctx, storage, dstDirPath)
+	if err != nil {
+		return errors.WithMessage(err, "failed to get dst dir")
+	}
+
+	switch s := storage.(type) {
+	case driver.CopyResult:
+		var newObj model.Obj
+		newObj, err = s.Copy(ctx, srcObj, dstDir)
+		if err == nil {
+			if newObj != nil {
+				addCacheObj(storage, dstDirPath, model.WrapObjName(newObj))
+			} else if !utils.IsBool(lazyCache...) {
+				DeleteCache(storage, dstDirPath)
+			}
+		}
+	case driver.Copy:
+		err = s.Copy(ctx, srcObj, dstDir)
+		if err == nil && !utils.IsBool(lazyCache...) {
+			DeleteCache(storage, dstDirPath)
+		}
+	default:
+		return errors.New("not complemented")
+	}
+	return errors.WithStack(err)
+}
+
+func Remove(ctx context.Context, storage driver.Driver, path string) error {
+	if storage.Config().CheckStatus && storage.GetStorage().Status != configs.WORK {
+		return errors.Errorf("storage not init: %s", storage.GetStorage().Status)
+	}
+	if utils.PathEqual(path, "/") {
+		return errors.New("delete root folder is not allowed, please goto the manage page to delete the storage instead")
+	}
+	path = utils.FixAndCleanPath(path)
+	rawObj, err := Get(ctx, storage, path)
+	if err != nil {
+		// if object not found, it's ok
+		if strings.Contains(err.Error(), "object not found") {
+			// log.Debugf("%s have been removed", path)
+			return nil
+		}
+		return errors.WithMessage(err, "failed to get object")
+	}
+	dirPath := stdpath.Dir(path)
+
+	switch s := storage.(type) {
+	case driver.Remove:
+		err = s.Remove(ctx, model.UnwrapObj(rawObj))
+		if err == nil {
+			delCacheObj(storage, dirPath, rawObj)
+			// clear folder cache recursively
+			if rawObj.IsDir() {
+				ClearCache(storage, path)
+			}
+		}
+	default:
+		return errors.New("not implemented")
+	}
+	return errors.WithStack(err)
+}
+
+func Other(ctx context.Context, storage driver.Driver, args model.FsOtherArgs) (interface{}, error) {
+	obj, err := GetUnwrap(ctx, storage, args.Path)
+	if err != nil {
+		return nil, errors.WithMessagef(err, "failed to get obj")
+	}
+	if o, ok := storage.(driver.Other); ok {
+		return o.Other(ctx, model.OtherArgs{
+			Obj:    obj,
+			Method: args.Method,
+			Data:   args.Data,
+		})
+	} else {
+		return nil, errors.New("not implemented")
+	}
 }

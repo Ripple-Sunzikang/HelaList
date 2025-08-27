@@ -12,8 +12,7 @@ import (
 	"HelaList/internal/fs"
 	"HelaList/internal/model"
 
-	"github.com/OpenListTeam/OpenList/v4/internal/conf"
-	"github.com/OpenListTeam/OpenList/v4/internal/errs"
+	"HelaList/configs"
 )
 
 type Handler struct {
@@ -160,13 +159,13 @@ func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) (status 
 		return status, err
 	}
 	ctx := r.Context()
-	user := ctx.Value(conf.UserKey).(*model.User)
+	user := ctx.Value(configs.UserKey).(*model.User)
 	reqPath, err = user.JoinPath(reqPath)
 	if err != nil {
 		return 403, err
 	}
 	allow := "OPTIONS, LOCK, PUT, MKCOL"
-	if fi, err := fs.Get(ctx, reqPath, &fs.GetArgs{}); err == nil {
+	if fi, err := fs.Get(ctx, reqPath); err == nil {
 		if fi.IsDir() {
 			allow = "OPTIONS, LOCK, DELETE, PROPPATCH, COPY, MOVE, UNLOCK, PROPFIND"
 		} else {
@@ -193,7 +192,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) (status i
 	defer release()
 
 	ctx := r.Context()
-	user := ctx.Value(conf.UserKey).(*model.User)
+	user := ctx.Value(configs.UserKey).(*model.User)
 	reqPath, err = user.JoinPath(reqPath)
 	if err != nil {
 		return 403, err
@@ -203,8 +202,8 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) (status i
 	// "godoc os RemoveAll" says that "If the path does not exist, RemoveAll
 	// returns nil (no error)." WebDAV semantics are that it should return a
 	// "404 Not Found". We therefore have to Stat before we RemoveAll.
-	if _, err := fs.Get(ctx, reqPath, &fs.GetArgs{}); err != nil {
-		if errs.IsObjectNotFound(err) {
+	if _, err := fs.Get(ctx, reqPath); err != nil {
+		if strings.Contains(err.Error(), "object not found") {
 			return http.StatusNotFound, err
 		}
 		return http.StatusMethodNotAllowed, err
@@ -228,7 +227,7 @@ func (h *Handler) handleMkcol(w http.ResponseWriter, r *http.Request) (status in
 	defer release()
 
 	ctx := r.Context()
-	user := ctx.Value(conf.UserKey).(*model.User)
+	user := ctx.Value(configs.UserKey).(*model.User)
 	reqPath, err = user.JoinPath(reqPath)
 	if err != nil {
 		return 403, err
@@ -240,14 +239,14 @@ func (h *Handler) handleMkcol(w http.ResponseWriter, r *http.Request) (status in
 
 	// RFC 4918 9.3.1
 	//405 (Method Not Allowed) - MKCOL can only be executed on an unmapped URL
-	if _, err := fs.Get(ctx, reqPath, &fs.GetArgs{}); err == nil {
+	if _, err := fs.Get(ctx, reqPath); err == nil {
 		return http.StatusMethodNotAllowed, err
 	}
 	// RFC 4918 9.3.1
 	// 409 (Conflict) The server MUST NOT create those intermediate collections automatically.
 	reqDir := path.Dir(reqPath)
-	if _, err := fs.Get(ctx, reqDir, &fs.GetArgs{}); err != nil {
-		if errs.IsObjectNotFound(err) {
+	if _, err := fs.Get(ctx, reqDir); err != nil {
+		if strings.Contains(err.Error(), "object not found") {
 			return http.StatusConflict, err
 		}
 		return http.StatusMethodNotAllowed, err

@@ -3,6 +3,7 @@ package fs
 import (
 	"HelaList/internal/model"
 	"context"
+	"fmt"
 	"log"
 )
 
@@ -22,4 +23,52 @@ func List(ctx context.Context, path string, args *ListArgs) ([]model.Obj, error)
 		return nil, err
 	}
 	return res, nil
+}
+
+func Get(ctx context.Context, path string) (model.Obj, error) {
+	res, err := get(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func MakeDir(ctx context.Context, path string, lazyCache ...bool) error {
+	err := makeDir(ctx, path, lazyCache...)
+	if err != nil {
+		fmt.Errorf("failed make dir %s: %+v", path, err)
+	}
+	return err
+}
+
+// func Move(ctx context.Context, srcPath, dstDirPath string, lazyCache ...bool) (task.TaskExtensionInfo, error) {
+// 	req, err := transfer(ctx, move, srcPath, dstDirPath, lazyCache...)
+// 	if err != nil {
+// 		fmt.Errorf("failed move %s to %s: %+v", srcPath, dstDirPath, err)
+// 	}
+// 	return req, err
+// }
+
+// func Copy(ctx context.Context, srcObjPath, dstDirPath string, lazyCache ...bool) (task.TaskExtensionInfo, error) {
+// 	res, err := transfer(ctx, copy, srcObjPath, dstDirPath, lazyCache...)
+// 	if err != nil {
+// 		fmt.Errorf("failed copy %s to %s: %+v", srcObjPath, dstDirPath, err)
+// 	}
+// 	return res, err
+// }
+
+func Rename(ctx context.Context, srcPath, dstName string, lazyCache ...bool) error {
+	err := rename(ctx, srcPath, dstName, lazyCache...)
+	if err != nil {
+		fmt.Errorf("failed rename %s to %s: %+v", srcPath, dstName, err)
+	}
+	return err
+}
+
+func Remove(ctx context.Context, path string) error {
+	err := remove(ctx, path)
+	if err != nil {
+		fmt.Errorf("failed remove %s: %+v", path, err)
+	}
+	return err
 }

@@ -7,3 +7,15 @@ type ListArgs struct {
 	S3ShowPlaceholder bool
 	Refresh           bool
 }
+
+type FsOtherArgs struct {
+	Path   string      `json:"path" form:"path"`
+	Method string      `json:"method" form:"method"`
+	Data   interface{} `json:"data" form:"data"`
+}
+
+type OtherArgs struct {
+	Obj    Obj
+	Method string
+	Data   interface{}
+}

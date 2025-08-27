@@ -101,3 +101,39 @@ type Put interface {
 type Reference interface {
 	InitReference(storage Driver) error
 }
+
+//type WriteResult interface {
+//	MkdirResult
+//	MoveResult
+//	RenameResult
+//	CopyResult
+//	PutResult
+//	Remove
+//}
+
+type MkdirResult interface {
+	MakeDir(ctx context.Context, parentDir model.Obj, dirName string) (model.Obj, error)
+}
+
+type MoveResult interface {
+	Move(ctx context.Context, srcObj, dstDir model.Obj) (model.Obj, error)
+}
+
+type RenameResult interface {
+	Rename(ctx context.Context, srcObj model.Obj, newName string) (model.Obj, error)
+}
+
+type CopyResult interface {
+	Copy(ctx context.Context, srcObj, dstDir model.Obj) (model.Obj, error)
+}
+
+type PutURLResult interface {
+	// PutURL directly put a URL into the storage
+	// Applicable to index-based drivers like URL-Tree or drivers that support uploading files as URLs
+	// Called when using SimpleHttp for offline downloading, skipping creating a download task
+	PutURL(ctx context.Context, dstDir model.Obj, name, url string) (model.Obj, error)
+}
+
+type Other interface {
+	Other(ctx context.Context, args model.OtherArgs) (interface{}, error)
+}
