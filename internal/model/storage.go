@@ -30,6 +30,10 @@ type Sort struct {
 	ExtractFolder  string `json:"extract_folder"`  // 暂定
 }
 
+func (Storage) TableName() string {
+	return "storages"
+}
+
 // BeforeCreate 钩子：在创建前生成 UUID v7
 func (s *Storage) BeforeCreate(tx *gorm.DB) error {
 	if s.Id == uuid.Nil {

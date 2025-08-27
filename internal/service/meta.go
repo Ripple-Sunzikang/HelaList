@@ -4,6 +4,7 @@ import (
 	"HelaList/internal/model"
 	"HelaList/internal/repository"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -27,8 +28,8 @@ func UpdateMeta(meta *model.Meta) error {
 	return repository.UpdateMeta(meta)
 }
 
-func DeleteMetaById(id uint) error {
-	if id == 0 {
+func DeleteMetaById(id uuid.UUID) error {
+	if id == uuid.Nil {
 		return errors.New("invalid meta id")
 	}
 	return repository.DeleteMetaById(id)
@@ -41,8 +42,8 @@ func GetMetas(pageIndex, pageSize int) ([]model.Meta, int64, error) {
 	return repository.GetMetas(pageIndex, pageSize)
 }
 
-func GetMetaById(id uint) (*model.Meta, error) {
-	if id == 0 {
+func GetMetaById(id uuid.UUID) (*model.Meta, error) {
+	if id == uuid.Nil {
 		return nil, errors.New("invalid meta id")
 	}
 	return repository.GetMetaById(id)

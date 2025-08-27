@@ -10,6 +10,7 @@ import (
 	"github.com/OpenListTeam/OpenList/v4/pkg/singleflight"
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 	"github.com/OpenListTeam/go-cache"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
@@ -62,7 +63,7 @@ func getMetaByPath(path string) (*model.Meta, error) {
 	return meta, err
 }
 
-func DeleteMetaById(id uint) error {
+func DeleteMetaById(id uuid.UUID) error {
 	old, err := service.GetMetaById(id)
 	if err != nil {
 		return err
@@ -87,7 +88,7 @@ func CreateMeta(u *model.Meta) error {
 	return service.CreateMeta(u)
 }
 
-func GetMetaById(id uint) (*model.Meta, error) {
+func GetMetaById(id uuid.UUID) (*model.Meta, error) {
 	return service.GetMetaById(id)
 }
 

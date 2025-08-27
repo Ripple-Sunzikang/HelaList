@@ -4,6 +4,7 @@ import (
 	"HelaList/internal/bootstrap"
 	"HelaList/internal/model"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -15,7 +16,7 @@ func GetMetaByPath(path string) (*model.Meta, error) {
 	return &meta, nil
 }
 
-func GetMetaById(id uint) (*model.Meta, error) {
+func GetMetaById(id uuid.UUID) (*model.Meta, error) {
 	var u model.Meta
 	if err := bootstrap.Db.First(&u, id).Error; err != nil {
 		return nil, errors.Wrapf(err, "failed get old meta")
@@ -42,6 +43,6 @@ func GetMetas(pageIndex, pageSize int) (metas []model.Meta, count int64, err err
 	return metas, count, nil
 }
 
-func DeleteMetaById(id uint) error {
+func DeleteMetaById(id uuid.UUID) error {
 	return errors.WithStack(bootstrap.Db.Delete(&model.Meta{}, id).Error)
 }

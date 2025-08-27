@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func CreateMetaHandler(c *gin.Context) {
@@ -39,12 +40,12 @@ func UpdateMetaHandler(c *gin.Context) {
 
 func DeleteMetaByIdHandler(c *gin.Context) {
 	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	err = op.DeleteMetaById(uint(id))
+	err = op.DeleteMetaById(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -54,12 +55,12 @@ func DeleteMetaByIdHandler(c *gin.Context) {
 
 func GetMetaByIdHandler(c *gin.Context) {
 	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	meta, err := op.GetMetaById(uint(id))
+	meta, err := op.GetMetaById(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
