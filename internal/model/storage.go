@@ -40,3 +40,20 @@ func (s *Storage) SetStorage(storage Storage) {
 func (s *Storage) SetStatus(status string) {
 	s.Status = status
 }
+
+// type Proxy struct {
+// 	WebProxy     bool   `json:"web_proxy"`
+// 	WebdavPolicy string `json:"webdav_policy"`
+// 	ProxyRange   bool   `json:"proxy_range"`
+// 	DownProxyURL string `json:"down_proxy_url"`
+// 	//Disable sign for DownProxyURL
+// 	DisableProxySign bool `json:"disable_proxy_sign"`
+// }
+
+// func (p Proxy) Webdav302() bool {
+// 	return p.WebdavPolicy == "302_redirect"
+// }
+
+// func (p Proxy) WebdavProxyURL() bool {
+// 	return p.WebdavPolicy == "use_proxy_url"
+// }

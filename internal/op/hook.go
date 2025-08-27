@@ -1,6 +1,9 @@
 package op
 
-import "HelaList/internal/model"
+import (
+	"HelaList/internal/driver"
+	"HelaList/internal/model"
+)
 
 // 给Obj用的Hook
 type ObjsUpdateHook = func(parent string, objs []model.Obj)
@@ -17,4 +20,19 @@ func HandleObjsUpdateHook(parent string, objs []model.Obj) {
 	for _, hook := range objsUpdateHooks {
 		hook(parent, objs)
 	}
+}
+
+// Storage
+type StorageHook func(typ string, storage driver.Driver)
+
+var storageHooks = make([]StorageHook, 0)
+
+func callStorageHooks(typ string, storage driver.Driver) {
+	for _, hook := range storageHooks {
+		hook(typ, storage)
+	}
+}
+
+func RegisterStorageHook(hook StorageHook) {
+	storageHooks = append(storageHooks, hook)
 }

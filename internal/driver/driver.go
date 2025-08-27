@@ -97,3 +97,7 @@ type Put interface {
 	Put(ctx context.Context, destiDIr model.Obj, )
 }
 */
+
+type Reference interface {
+	InitReference(storage Driver) error
+}

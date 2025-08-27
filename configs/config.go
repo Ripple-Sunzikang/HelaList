@@ -1,5 +1,7 @@
 package configs
 
+var Conf *Config
+
 type Database struct {
 	Type     string `json:"type" env:"TYPE"`
 	Host     string `json:"host" env:"HOST"`
@@ -26,4 +28,10 @@ func DefaultConfig(dataDir string) *Config {
 			DSN:      "host=localhost user=suzuki password=suzuki dbname=hela port=5432 sslmode=disable TimeZone=Asia/Shanghai",
 		},
 	}
+}
+
+func init() {
+	// 实际项目中，这里通常会从文件或环境变量加载配置
+	// 此处我们先用默认配置来初始化
+	Conf = DefaultConfig("")
 }
