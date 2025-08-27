@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // Storage表示系统中一个存储后端的完整配置信息，你可以理解为一个被挂载的网盘
@@ -27,6 +28,14 @@ type Sort struct {
 	OrderBy        string `json:"order_by"`        // 比如"ModifiedTime"，就是按修改时间排序，"order"就是按Order排序
 	OrderDirection string `json:"order_direction"` // 升序和降序(其实我想用bool然后换个名字)
 	ExtractFolder  string `json:"extract_folder"`  // 暂定
+}
+
+// BeforeCreate 钩子：在创建前生成 UUID v7
+func (s *Storage) BeforeCreate(tx *gorm.DB) error {
+	if s.Id == uuid.Nil {
+		s.Id = uuid.Must(uuid.NewV7())
+	}
+	return nil
 }
 
 func (s *Storage) GetStorage() *Storage {

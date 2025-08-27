@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "HelaList/drivers/webdav"
 	"HelaList/internal/bootstrap"
 	"HelaList/internal/model"
 	"HelaList/internal/server"
@@ -9,13 +10,11 @@ import (
 
 func main() {
 	bootstrap.InitDB()
-
-	err := bootstrap.Db.AutoMigrate(&model.User{})
+	err := bootstrap.Db.AutoMigrate(&model.User{}, &model.Storage{})
 	if err != nil {
 		log.Fatal("数据库迁移失败: %v", err)
 	}
 	log.Println("数据库迁移成功！")
-
 	r := server.Init()
 	if err := r.Run(); err != nil {
 		log.Fatalf("启动服务器失败: %v", err)

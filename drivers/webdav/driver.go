@@ -3,6 +3,7 @@ package webdav
 import (
 	"HelaList/internal/driver"
 	"HelaList/internal/model"
+	"HelaList/internal/op"
 	"context"
 	"crypto/tls"
 	"net/http"
@@ -140,4 +141,10 @@ func getPath(obj model.Obj) string {
 		return obj.GetPath() + "/"
 	}
 	return obj.GetPath()
+}
+
+func init() {
+	op.RegisterDriver(func() driver.Driver {
+		return &WebDav{}
+	})
 }
