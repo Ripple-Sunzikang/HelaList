@@ -3,9 +3,28 @@ package driver
 import (
 	"HelaList/internal/model"
 	"context"
-
-	"github.com/google/uuid"
 )
+
+type Config struct {
+	Name      string `json:"name"`
+	LocalSort bool   `json:"local_sort"`
+	// if the driver returns Link with MFile, this should be set to true
+	OnlyLinkMFile bool `json:"only_local"`
+	OnlyProxy     bool `json:"only_proxy"`
+	NoCache       bool `json:"no_cache"`
+	NoUpload      bool `json:"no_upload"`
+	// if need get message from user, such as validate code
+	NeedMs      bool   `json:"need_ms"`
+	DefaultRoot string `json:"default_root"`
+	CheckStatus bool   `json:"-"`
+	//info,success,warning,danger
+	Alert string `json:"alert"`
+	// whether to support overwrite upload
+	NoOverwriteUpload bool `json:"-"`
+	ProxyRangeOption  bool `json:"-"`
+	// if the driver returns Link without URL, this should be set to true
+	NoLinkURL bool `json:"-"`
+}
 
 type Driver interface {
 	Meta   // 网盘元数据
@@ -17,18 +36,19 @@ type Meta interface {
 		GetStorage()这玩意儿是需要实现的吗？
 		毕竟model.Storage已经有GetStorage了，不知道的还以为是跨命名空间接口实现呢
 	*/
+	Config() Config
 	GetStorage() *model.Storage
 	SetStorage(model.Storage)
 	//
 	GetAddition() Additional
+	Init(ctx context.Context) error
+	Drop(ctx context.Context) error
 }
-
-// 用于JSON
-type Additional interface{}
 
 // 用于读取路径下的所有文件
 type Reader interface {
 	List(ctx context.Context, dir model.Obj, args model.ListArgs) ([]model.Obj, error)
+	// Link(ctx context.Context, file model.Obj, args model.ListArgs) (*model.Link, error)
 }
 
 // 获取根目录
@@ -77,31 +97,3 @@ type Put interface {
 	Put(ctx context.Context, destiDIr model.Obj, )
 }
 */
-
-type IRootPath interface {
-	GetRootPath() string
-}
-
-type IRootId interface {
-	GetRootId() uuid.UUID
-}
-
-type RootPath struct {
-	RootFolderPath string `json:"root_folder_path"`
-}
-
-type RootID struct {
-	RootFolderID uuid.UUID `json:"root_folder_id"`
-}
-
-func (r RootPath) GetRootPath() string {
-	return r.RootFolderPath
-}
-
-func (r *RootPath) SetRootPath(path string) {
-	r.RootFolderPath = path
-}
-
-func (r RootID) GetRootId() uuid.UUID {
-	return r.RootFolderID
-}
