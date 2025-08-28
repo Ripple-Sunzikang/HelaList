@@ -1,3 +1,5 @@
+# ./query_test.sh <username> <password>
+set -euo pipefail
 if [ $# -ne 2 ]; then
     echo "用法: $0 <username> <password>"
     exit 1
