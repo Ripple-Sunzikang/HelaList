@@ -4,13 +4,11 @@ import (
 	"HelaList/configs"
 	"HelaList/internal/fs"
 	"HelaList/internal/model"
-	"HelaList/internal/op"
 	"HelaList/internal/server/common"
 	"errors"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // ListReq represents the request for listing files
@@ -18,8 +16,6 @@ type ListReq struct {
 	Path     string `json:"path" form:"path"`
 	Password string `json:"password" form:"password"`
 	Refresh  bool   `json:"refresh"`
-	Page     int    `json:"page" form:"page" default:"1"`           // 设置默认值
-	PerPage  int    `json:"per_page" form:"per_page" default:"100"` // 设置默认值
 }
 
 // FsListHandler handles file listing
@@ -45,18 +41,13 @@ func FsListHandler(c *gin.Context) {
 		return
 	}
 
-	meta, err := op.GetNearestMeta(reqPath)
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			common.ErrorResponse(c, err, 500)
-			return
-		}
-	}
-
-	if !canAccess(user, meta, reqPath, req.Password) {
-		common.ErrorResponse(c, errors.New("password incorrect or no permission"), 403)
-		return
-	}
+	// meta, err := op.GetNearestMeta(reqPath)
+	// if err != nil {
+	// 	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	// 		common.ErrorResponse(c, err, 500)
+	// 		return
+	// 	}
+	// }
 
 	objs, err := fs.List(c.Request.Context(), reqPath, &fs.ListArgs{Refresh: req.Refresh})
 	if err != nil {
@@ -64,22 +55,23 @@ func FsListHandler(c *gin.Context) {
 		return
 	}
 
-	// Simple pagination
-	total := len(objs)
-	start := (req.Page - 1) * req.PerPage
-	if start < 0 {
-		start = 0
-	}
-	end := start + req.PerPage
-	if end > total {
-		end = total
-	}
-	paginatedObjs := objs[start:end]
+	// // 现在并不很需要分页
+	// total := len(objs)
+	// start := (req.Page - 1) * req.PerPage
+	// if start < 0 {
+	// 	start = 0
+	// }
+	// end := start + req.PerPage
+	// if end > total {
+	// 	end = total
+	// }
+	// paginatedObjs := objs[start:end]
 
 	resp := FsListResp{
-		Content: toObjsResp(paginatedObjs, reqPath),
-		Total:   int64(total),
-		Write:   user.CanWrite() || canWrite(meta, reqPath),
+		// 直接转换完整的 objs 列表，而不是分页后的 paginatedObjs
+		Content: toObjsResp(objs, reqPath),
+		Total:   int64(len(objs)),
+		Write:   true,
 	}
 
 	common.SuccessResponse(c, resp)
@@ -114,18 +106,13 @@ func FsDirsHandler(c *gin.Context) {
 		return
 	}
 
-	meta, err := op.GetNearestMeta(reqPath)
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			common.ErrorResponse(c, err, 500)
-			return
-		}
-	}
-
-	if !canAccess(user, meta, reqPath, req.Password) {
-		common.ErrorResponse(c, errors.New("password incorrect or no permission"), 403)
-		return
-	}
+	// meta, err := op.GetNearestMeta(reqPath)
+	// if err != nil {
+	// 	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	// 		common.ErrorResponse(c, err, 500)
+	// 		return
+	// 	}
+	// }
 
 	objs, err := fs.List(c.Request.Context(), reqPath, &fs.ListArgs{})
 	if err != nil {
@@ -163,18 +150,13 @@ func FsGetHandler(c *gin.Context) {
 		return
 	}
 
-	meta, err := op.GetNearestMeta(reqPath)
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			common.ErrorResponse(c, err, 500)
-			return
-		}
-	}
-
-	if !canAccess(user, meta, reqPath, req.Password) {
-		common.ErrorResponse(c, errors.New("password incorrect or no permission"), 403)
-		return
-	}
+	// meta, err := op.GetNearestMeta(reqPath)
+	// if err != nil {
+	// 	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	// 		common.ErrorResponse(c, err, 500)
+	// 		return
+	// 	}
+	// }
 
 	obj, err := fs.Get(c.Request.Context(), reqPath)
 	if err != nil {
@@ -186,24 +168,7 @@ func FsGetHandler(c *gin.Context) {
 	common.SuccessResponse(c, resp)
 }
 
-// Helper functions
-func canAccess(user *model.User, meta *model.Meta, path, password string) bool {
-	if user.IsAdmin() {
-		return true
-	}
-	if meta != nil && meta.Password != "" {
-		return meta.Password == password
-	}
-	return true // Simplified, add more logic as needed
-}
-
-func canWrite(meta *model.Meta, path string) bool {
-	if meta != nil && meta.Write {
-		return true
-	}
-	return false
-}
-
+// 从文件和文件夹的组合中，找出所有文件夹
 func filterDirs(objs []model.Obj) []DirResp {
 	var dirs []DirResp
 	for _, obj := range objs {
@@ -216,6 +181,8 @@ func filterDirs(objs []model.Obj) []DirResp {
 	}
 	return dirs
 }
+
+// 将Obj转为api响应对象
 
 func toObjsResp(objs []model.Obj, parent string) []ObjResp {
 	var resp []ObjResp
@@ -245,7 +212,8 @@ func toObjResp(obj model.Obj, parent string) ObjResp {
 	}
 }
 
-// Response structs
+// api的响应对象
+
 type ObjResp struct {
 	Id       string    `json:"id"`
 	Path     string    `json:"path"`

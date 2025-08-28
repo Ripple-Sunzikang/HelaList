@@ -57,9 +57,9 @@ func (u *User) IsGuest() bool {
 	return u.Identity == GUEST
 }
 
-func (u *User) CanWrite() bool {
-	return !u.Disabled && (u.Identity == ADMIN || u.Identity == GENERAL)
-}
+// func (u *User) CanWrite() bool {
+// 	return !u.Disabled && (u.Identity == ADMIN || u.Identity == GENERAL)
+// }
 
 // argon2密码加密所需参数
 const (
