@@ -13,7 +13,7 @@ type Response[T any] struct {
 }
 
 func ErrorResponse(c *gin.Context, err error, code int, l ...bool) {
-	c.JSON(200, Response[interface{}]{
+	c.JSON(500, Response[interface{}]{
 		Code:    code,
 		Message: "error",
 		Data:    nil,

@@ -120,6 +120,10 @@ func addCacheObj(storage driver.Driver, path string, newObj model.Obj) {
 
 // 列举storage中的文件，但不包含虚拟文件
 func List(ctx context.Context, storage driver.Driver, path string, args model.ListArgs) ([]model.Obj, error) {
+	if storage.Config().CheckStatus && storage.GetStorage().Status != configs.WORK {
+		return nil, errors.Errorf("storage not init: %s", storage.GetStorage().Status)
+	}
+	path = utils.FixAndCleanPath(path)
 	key := Key(storage, path)
 	if !args.Refresh {
 		if files, ok := listCache.Get(key); ok {
@@ -147,7 +151,7 @@ func List(ctx context.Context, storage driver.Driver, path string, args model.Li
 
 		go func(reqPath string, files []model.Obj) {
 			HandleObjsUpdateHook(reqPath, files)
-		}(stdpath.Join(storage.GetStorage().MountPath, path), files)
+		}(utils.GetFullPath(storage.GetStorage().MountPath, path), files)
 
 		// 诶我突然就很好奇，万一不sort会怎么样。
 		// // sort objs
@@ -156,15 +160,15 @@ func List(ctx context.Context, storage driver.Driver, path string, args model.Li
 		// }
 		// model.ExtractFolder(files, storage.GetStorage().ExtractFolder)
 
-		// if !storage.Config().NoCache {
-		// 	if len(files) > 0 {
-		// 		log.Debugf("set cache: %s => %+v", key, files)
-		// 		listCache.Set(key, files, cache.WithEx[[]model.Obj](time.Minute*time.Duration(storage.GetStorage().CacheExpiration)))
-		// 	} else {
-		// 		log.Debugf("del cache: %s", key)
-		// 		listCache.Del(key)
-		// 	}
-		// }
+		if !storage.Config().NoCache {
+			if len(files) > 0 {
+				// log.Debugf("set cache: %s => %+v", key, files)
+				listCache.Set(key, files, cache.WithEx[[]model.Obj](time.Minute*time.Duration(storage.GetStorage().CacheExpiration)))
+			} else {
+				// log.Debugf("del cache: %s", key)
+				listCache.Del(key)
+			}
+		}
 		return files, nil
 	})
 	return objs, err

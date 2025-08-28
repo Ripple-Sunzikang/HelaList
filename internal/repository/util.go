@@ -3,16 +3,12 @@ package repository
 import (
 	"fmt"
 
-	"HelaList/configs"
-
 	"gorm.io/gorm"
 )
 
 func columnName(name string) string {
-	if configs.Conf.Database.Type == "postgres" {
-		return fmt.Sprintf(`"%s"`, name)
-	}
-	return fmt.Sprintf("`%s`", name)
+	// 直接返回 PostgreSQL 的格式，不再需要 if 判断
+	return fmt.Sprintf(`"%s"`, name)
 }
 
 func addStorageOrder(db *gorm.DB) *gorm.DB {

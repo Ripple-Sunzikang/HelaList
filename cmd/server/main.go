@@ -4,12 +4,15 @@ import (
 	_ "HelaList/drivers/webdav"
 	"HelaList/internal/bootstrap"
 	"HelaList/internal/model"
+	"HelaList/internal/op"
 	"HelaList/internal/server"
+	"context"
 	"log"
 )
 
 func main() {
 	bootstrap.InitDB()
+	op.LoadAllStorages(context.Background())
 	err := bootstrap.Db.AutoMigrate(&model.User{}, &model.Storage{})
 	if err != nil {
 		log.Fatal("数据库迁移失败: %v", err)

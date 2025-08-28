@@ -250,3 +250,29 @@ func UpdateStorage(ctx context.Context, storage model.Storage) error {
 	//fmt.Debugf("storage %+v is update", storageDriver)
 	return err
 }
+
+// 启动时初始化读取所有挂载网盘
+func LoadAllStorages(ctx context.Context) {
+	storages, err := service.GetEnabledStorages()
+	if err != nil {
+		fmt.Printf("[HelaList] Error getting enabled storages on startup: %+v\n", err)
+		return
+	}
+
+	fmt.Printf("[HelaList] Found %d storages to load...\n", len(storages))
+	for _, storage := range storages {
+		fmt.Printf("[HelaList] Loading storage: %s\n", storage.MountPath)
+		// 为每个存储创建一个新的驱动实例
+		driverNew, err := GetDriver(storage.Driver)
+		if err != nil {
+			fmt.Printf("[HelaList] Error loading storage [%s]: failed to get driver new: %+v\n", storage.MountPath, err)
+			continue
+		}
+		storageDriver := driverNew()
+		// 初始化这个驱动
+		err = initStorage(ctx, storage, storageDriver)
+		if err != nil {
+			fmt.Printf("[HelaList] Error initializing storage [%s]: %+v\n", storage.MountPath, err)
+		}
+	}
+}

@@ -24,4 +24,5 @@ func InitDB() {
 		log.Panicf("Database connection failed: %v", err)
 	}
 	log.Println("Database connected!")
+
 }

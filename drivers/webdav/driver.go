@@ -10,8 +10,9 @@ import (
 	"os"
 	"path"
 
+	"github.com/OpenListTeam/OpenList/v4/pkg/gowebdav"
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
-	"github.com/the-plate/gowebdav"
+	// "github.com/the-plate/gowebdav"
 )
 
 type WebDav struct {
@@ -42,7 +43,7 @@ func (d *WebDav) Drop(ctx context.Context) error {
 }
 
 func (d *WebDav) List(ctx context.Context, dir model.Obj, args model.ListArgs) ([]model.Obj, error) {
-	files, err := d.client.ReadDir(ctx, dir.GetPath())
+	files, err := d.client.ReadDir(dir.GetPath())
 	if err != nil {
 		return nil, err
 	}
@@ -68,23 +69,23 @@ func (d *WebDav) List(ctx context.Context, dir model.Obj, args model.ListArgs) (
 // }
 
 func (d *WebDav) MakeDir(ctx context.Context, parentDir model.Obj, dirName string) error {
-	return d.client.MkdirAll(ctx, path.Join(parentDir.GetPath(), dirName), 0644)
+	return d.client.MkdirAll(path.Join(parentDir.GetPath(), dirName), 0644)
 }
 
 func (d *WebDav) Move(ctx context.Context, srcObj, dstDir model.Obj) error {
-	return d.client.Rename(ctx, getPath(srcObj), path.Join(dstDir.GetPath(), srcObj.GetName()), true)
+	return d.client.Rename(getPath(srcObj), path.Join(dstDir.GetPath(), srcObj.GetName()), true)
 }
 
 func (d *WebDav) Rename(ctx context.Context, srcObj model.Obj, newName string) error {
-	return d.client.Rename(ctx, getPath(srcObj), path.Join(path.Dir(srcObj.GetPath()), newName), true)
+	return d.client.Rename(getPath(srcObj), path.Join(path.Dir(srcObj.GetPath()), newName), true)
 }
 
 func (d *WebDav) Copy(ctx context.Context, srcObj, dstDir model.Obj) error {
-	return d.client.Copy(ctx, getPath(srcObj), path.Join(dstDir.GetPath(), srcObj.GetName()), true)
+	return d.client.Copy(getPath(srcObj), path.Join(dstDir.GetPath(), srcObj.GetName()), true)
 }
 
 func (d *WebDav) Remove(ctx context.Context, obj model.Obj) error {
-	return d.client.RemoveAll(ctx, getPath(obj))
+	return d.client.RemoveAll(getPath(obj))
 }
 
 // func (d *WebDav) Put(ctx context.Context, dstDir model.Obj, s model.FileStreamer, up driver.UpdateProgress) error {
