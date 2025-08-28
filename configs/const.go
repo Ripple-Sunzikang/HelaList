@@ -16,6 +16,8 @@ const (
 	_ ContextKey = iota
 	MetaKey
 	UserKey
+	NoTaskKey
+	ApiUrlKey
 )
 
 const (

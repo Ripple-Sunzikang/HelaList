@@ -3,6 +3,8 @@ package common
 import (
 	"HelaList/internal/model"
 	"errors"
+	"log"
+	"os"
 	"time"
 
 	"HelaList/configs"
@@ -20,6 +22,19 @@ type UserClaims struct {
 }
 
 var validTokenCache = cache.NewMemCache[bool]()
+
+// init 函数会在包被初次加载时自动执行
+func init() {
+	// 最佳实践是从环境变量或配置文件中读取密钥
+	// 为了方便，这里我们先使用一个固定的密钥
+	// 警告：请在生产环境中替换为一个更长、更随机的安全密钥！
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "your-default-long-and-secure-random-string-for-dev"
+		log.Println("警告: 未设置 JWT_SECRET 环境变量, 正在使用默认的开发密钥。请勿在生产环境中使用。")
+	}
+	SecretKey = []byte(secret)
+}
 
 func GenerateToken(user *model.User) (tokenString string, err error) {
 	claim := UserClaims{

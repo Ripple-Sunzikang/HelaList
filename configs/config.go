@@ -13,15 +13,17 @@ type Database struct {
 }
 
 type Config struct {
-	SiteURL        string   `json:"site_url" env:"SITE_URL"`
-	Cdn            string   `json:"cdn" env:"CDN"`
-	JwtSecret      string   `json:"jwt_secret" env:"JWT_SECRET"`
-	TokenExpiresIn int      `json:"token_expires_in" env:"TOKEN_EXPIRES_IN"`
-	Database       Database `json:"database" envPrefix:"DB_"`
+	SiteURL        string      `json:"site_url" env:"SITE_URL"`
+	Cdn            string      `json:"cdn" env:"CDN"`
+	JwtSecret      string      `json:"jwt_secret" env:"JWT_SECRET"`
+	TokenExpiresIn int         `json:"token_expires_in" env:"TOKEN_EXPIRES_IN"`
+	Database       Database    `json:"database" envPrefix:"DB_"`
+	Tasks          TasksConfig `json:"tasks" envPrefix:"TASKS_"`
 }
 
 func DefaultConfig(dataDir string) *Config {
 	return &Config{
+		TokenExpiresIn: 24,
 		Database: Database{
 			Type:     "postgresql",
 			Host:     "localhost",
@@ -32,6 +34,23 @@ func DefaultConfig(dataDir string) *Config {
 			DSN:      "host=localhost user=suzuki password=suzuki dbname=hela port=5432 sslmode=disable TimeZone=Asia/Shanghai",
 		},
 	}
+}
+
+type TaskConfig struct {
+	Workers        int  `json:"workers" env:"WORKERS"`
+	MaxRetry       int  `json:"max_retry" env:"MAX_RETRY"`
+	TaskPersistant bool `json:"task_persistant" env:"TASK_PERSISTANT"`
+}
+
+type TasksConfig struct {
+	Download           TaskConfig `json:"download" envPrefix:"DOWNLOAD_"`
+	Transfer           TaskConfig `json:"transfer" envPrefix:"TRANSFER_"`
+	Upload             TaskConfig `json:"upload" envPrefix:"UPLOAD_"`
+	Copy               TaskConfig `json:"copy" envPrefix:"COPY_"`
+	Move               TaskConfig `json:"move" envPrefix:"MOVE_"`
+	Decompress         TaskConfig `json:"decompress" envPrefix:"DECOMPRESS_"`
+	DecompressUpload   TaskConfig `json:"decompress_upload" envPrefix:"DECOMPRESS_UPLOAD_"`
+	AllowRetryCanceled bool       `json:"allow_retry_canceled" env:"ALLOW_RETRY_CANCELED"`
 }
 
 func init() {

@@ -6,6 +6,7 @@ import (
 	"HelaList/internal/model"
 	"HelaList/internal/server/common"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -200,6 +201,30 @@ func toObjsResp(objs []model.Obj, parent string) []ObjResp {
 	return resp
 }
 
+type MkdirOrLinkReq struct {
+	Path string `json:"path" form:"path"`
+}
+
+func FsMkdir(c *gin.Context) {
+	var req MkdirOrLinkReq
+	if err := c.ShouldBind(&req); err != nil {
+		common.ErrorResponse(c, err, 400)
+		return
+	}
+	user := c.Request.Context().Value(configs.UserKey).(*model.User)
+	reqPath, err := user.JoinPath(req.Path)
+	if err != nil {
+		common.ErrorResponse(c, err, 403)
+		return
+	}
+
+	if err := fs.MakeDir(c.Request.Context(), reqPath); err != nil {
+		common.ErrorResponse(c, err, 500)
+		return
+	}
+	common.SuccessResponse(c)
+}
+
 func toObjResp(obj model.Obj, parent string) ObjResp {
 	return ObjResp{
 		Id:       obj.GetId().String(),
@@ -210,6 +235,19 @@ func toObjResp(obj model.Obj, parent string) ObjResp {
 		Modified: obj.GetModifiedTime(),
 		Created:  obj.GetCreatedTime(),
 	}
+}
+
+type RenameReq struct {
+	Path      string `json:"path"`
+	Name      string `json:"name"`
+	Overwrite bool   `json:"overwrite"`
+}
+
+func checkRelativePath(path string) error {
+	if strings.ContainsAny(path, "/\\") || path == "" || path == "." || path == ".." {
+		return errors.New("relativePath")
+	}
+	return nil
 }
 
 // api的响应对象

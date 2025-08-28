@@ -81,5 +81,6 @@ func registerFsRoutes(r *gin.Engine) {
 		fs.GET("/list/*path", handler.FsListHandler)
 		fs.GET("/dirs/*path", handler.FsDirsHandler)
 		fs.GET("/get/*path", handler.FsGetHandler)
+		fs.POST("/mkdir", handler.FsMkdir)
 	}
 }

@@ -43,7 +43,8 @@ func Auth(required bool) gin.HandlerFunc {
 		claims, err := common.ParseToken(token)
 		if err != nil {
 			if required {
-				common.ErrorResponse(c, errors.New("无效的认证令牌"), 401)
+				// 【关键修改】将来自ParseToken的原始错误err直接传递出去
+				common.ErrorResponse(c, err, 401)
 				c.Abort()
 				return
 			}

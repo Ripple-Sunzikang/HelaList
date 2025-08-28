@@ -49,6 +49,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			status, err = h.handleDelete(brw, r)
 		case "MKCOL":
 			status, err = h.handleMkcol(brw, r)
+		case "MOVE":
 		}
 	}
 
@@ -260,6 +261,11 @@ func (h *Handler) handleMkcol(w http.ResponseWriter, r *http.Request) (status in
 	return http.StatusCreated, nil
 }
 
+const (
+	infiniteDepth = -1
+	invalidDepth  = -2
+)
+
 // http://www.webdav.org/specs/rfc4918.html#status.code.extensions.to.http11
 const (
 	StatusMulti               = 207
@@ -283,6 +289,18 @@ func StatusText(code int) string {
 		return "Insufficient Storage"
 	}
 	return http.StatusText(code)
+}
+
+func parseDepth(s string) int {
+	switch s {
+	case "0":
+		return 0
+	case "1":
+		return 1
+	case "infinity":
+		return infiniteDepth
+	}
+	return invalidDepth
 }
 
 var (

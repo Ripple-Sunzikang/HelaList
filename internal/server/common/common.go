@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,9 +14,12 @@ type Response[T any] struct {
 }
 
 func ErrorResponse(c *gin.Context, err error, code int, l ...bool) {
-	c.JSON(500, Response[interface{}]{
+	// 打印详细错误到服务器控制台
+	log.Printf("Error response: [code %d] %v", code, err)
+
+	c.JSON(code, Response[interface{}]{ // 注意：将HTTP状态码也改为传入的code
 		Code:    code,
-		Message: "error",
+		Message: err.Error(), // 将具体的错误信息返回
 		Data:    nil,
 	})
 	c.Abort()
