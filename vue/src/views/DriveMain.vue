@@ -39,62 +39,34 @@
 
           <!-- 文件列表 -->
           <div class="file-list">
-            <div class="file-list-header">
-              <div class="header-column name-column">文件名</div>
-              <div class="header-column type-column">类型</div>
-              <div class="header-column date-column">修改日期</div>
-              <div class="header-column size-column">大小</div>
-              <div class="header-column actions-column">操作</div>
-            </div>
+            <!--            <div class="file-list-header">-->
+            <!--              <div class="header-column name-column">文件名</div>-->
+            <!--              <div class="header-column type-column">类型</div>-->
+            <!--              <div class="header-column date-column">修改日期</div>-->
+            <!--              <div class="header-column size-column">大小</div>-->
+            <!--              <div class="header-column actions-column">操作</div>-->
+            <!--            </div>-->
 
-            <div class="file-list-body">
-              <!-- 文件夹和文件项 -->
+            <div class="file-grid">
               <div
                 v-for="(item, index) in fileItems"
                 :key="index"
-                class="file-item"
+                class="file-card"
                 :class="{ 'is-locked': item.isLocked }"
               >
-                <div class="file-column name-column">
-                  <i :class="getItemIcon(item.type)" class="file-icon"></i>
-                  <span class="file-name">{{ item.name }}</span>
-                  <i v-if="item.isLocked" class="fas fa-lock lock-icon" title="已加密"></i>
-                </div>
-                <div class="file-column type-column">{{ getItemTypeText(item.type) }}</div>
-                <div class="file-column date-column">{{ formatDate(item.modified) }}</div>
-                <div class="file-column size-column">
-                  {{ item.type === 'folder' ? '-' : formatFileSize(item.size) }}
-                </div>
-                <div class="file-column actions-column">
-                  <div class="file-actions">
-                    <!-- 锁定/解锁按钮 -->
-                    <button
-                      class="action-btn lock-btn"
-                      @click.stop="toggleLock(item)"
-                      :title="item.isLocked ? '解锁文件' : '锁定文件'"
-                    >
-                      <i class="fas" :class="item.isLocked ? 'fa-unlock' : 'fa-lock'"></i>
-                    </button>
-
-                    <!-- 下载按钮 -->
-                    <button
-                      class="action-btn download-btn"
-                      @click.stop="downloadFile(item)"
-                      :disabled="item.type === 'folder'"
-                      title="下载"
-                    >
-                      <i class="fas fa-download"></i>
-                    </button>
-
-                    <!-- 删除按钮 -->
-                    <button
-                      class="action-btn delete-btn"
-                      @click.stop="deleteFile(index)"
-                      title="删除"
-                    >
-                      <i class="fas fa-trash"></i>
-                    </button>
-                  </div>
+                <i :class="getItemIcon(item.type)" class="file-icon"></i>
+                <span class="file-name">{{ item.name }}</span>
+                <i v-if="item.isLocked" class="fas fa-lock lock-icon" title="已加密"></i>
+                <div class="file-actions">
+                  <button @click.stop="toggleLock(item)" :title="item.isLocked ? '解锁文件' : '锁定文件'">
+                    <i class="fas" :class="item.isLocked ? 'fa-unlock' : 'fa-lock'"></i>
+                  </button>
+                  <button @click.stop="downloadFile(item)" :disabled="item.type === 'folder'" title="下载">
+                    <i class="fas fa-download"></i>
+                  </button>
+                  <button @click.stop="deleteFile(index)" title="删除">
+                    <i class="fas fa-trash"></i>
+                  </button>
                 </div>
               </div>
 
@@ -773,87 +745,87 @@ onMounted(() => {
   text-align: right;
 }
 
-.file-list-body {
-  max-height: calc(100vh - 320px);
-  overflow-y: auto;
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 0.25fr));
+  gap: 1rem;
+  padding: 1.5rem;
 }
 
-.file-item {
+.file-card {
+  position: relative;
+  background: #f8fafc;
+  border-radius: 0.375rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  padding: 0.5rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid #f1f5f9;
-  transition: background-color 0.2s ease;
+  min-height: 140px;
+  width: 100px;
+  transition: box-shadow 0.2s;
 }
 
-.file-item:hover {
-  background-color: #f8fafc;
+.file-card:hover {
+  box-shadow: 0 4px 16px rgba(59,130,246,0.12);
 }
 
-.file-item.is-locked {
-  background-color: #f0f9ff;
-}
-
-.file-column {
-  color: #1e293b;
-  font-size: 0.9rem;
+.file-card.is-locked {
+  background: #f0f9ff;
 }
 
 .file-icon {
-  margin-right: 0.75rem;
-  font-size: 1.25rem;
+  font-size: 4.5rem;
+  margin-bottom: 0.3rem;
+  flex-shrink: 0;
 }
 
 .file-name {
-  flex: 1;
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-align: center;
+  word-break: break-all;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .lock-icon {
-  margin-left: 0.5rem;
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
   color: #3b82f6;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 
 .file-actions {
+  position: absolute;
+  bottom: 0.3rem;
+  right: 0.3rem;
   display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  gap: 0.3rem;
 }
 
-.action-btn {
+.file-actions button {
+  background: #e2e8f0;
+  border: none;
+  border-radius: 50%;
+  width: 1.8rem;
+  height: 1.8rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 50%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
   color: #64748b;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
 }
 
-.action-btn:hover {
-  background-color: #f1f5f9;
-  color: #1e293b;
-}
-
-.lock-btn:hover {
-  color: #3b82f6;
-}
-
-.download-btn:hover {
-  color: #10b981;
-}
-
-.delete-btn:hover {
-  color: #ef4444;
-}
-
-.delete-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.file-actions button:hover {
+  background: #3b82f6;
+  color: #fff;
 }
 
 .empty-state {
@@ -1388,6 +1360,44 @@ input:checked + .slider:before {
     width: 100%;
     margin-bottom: 0.5rem;
   }
+
+  .file-grid {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 0.25fr));
+    gap: 0.8rem;
+    padding: 1rem;
+  }
+
+  .file-card {
+    min-height: 120px;
+    width: 90px;
+    padding: 0.4rem;
+  }
+
+  .file-icon {
+    font-size: 4rem;
+  }
+
+  .file-name {
+    font-size: 0.8rem;
+    max-width: 85%;
+  }
+
+  .lock-icon {
+    top: 0.2rem;
+    right: 0.2rem;
+    font-size: 0.8rem;
+  }
+
+  .file-actions {
+    bottom: 0.2rem;
+    right: 0.2rem;
+    gap: 0.2rem;
+  }
+
+  .file-actions button {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1401,6 +1411,45 @@ input:checked + .slider:before {
 
   .header-column, .file-item {
     padding: 0.75rem;
+  }
+
+  .file-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 0.25fr));
+    gap: 0.6rem;
+    padding: 0.8rem;
+  }
+
+  .file-card {
+    min-height: 100px;
+    width: 80px;
+    padding: 0.3rem;
+  }
+
+  .file-icon {
+    font-size: 3.5rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .file-name {
+    font-size: 0.75rem;
+    max-width: 80%;
+  }
+
+  .lock-icon {
+    top: 0.15rem;
+    right: 0.15rem;
+    font-size: 0.7rem;
+  }
+
+  .file-actions {
+    bottom: 0.15rem;
+    right: 0.15rem;
+    gap: 0.15rem;
+  }
+
+  .file-actions button {
+    width: 1.4rem;
+    height: 1.4rem;
   }
 }
 </style>
