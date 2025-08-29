@@ -17,4 +17,14 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+
+  server: {
+    fs: {
+      allow: [
+        // 允许访问项目目录和 node_modules
+        'E:/Go_project/HelaList/HelaList/vue',
+        'E:/Go_project/HelaList/node_modules'
+      ]
+    }
+  }
 })
