@@ -39,13 +39,13 @@
 
           <!-- 文件列表 -->
           <div class="file-list">
-<!--            <div class="file-list-header">-->
-<!--              <div class="header-column name-column">文件名</div>-->
-<!--              <div class="header-column type-column">类型</div>-->
-<!--              <div class="header-column date-column">修改日期</div>-->
-<!--              <div class="header-column size-column">大小</div>-->
-<!--              <div class="header-column actions-column">操作</div>-->
-<!--            </div>-->
+            <!--            <div class="file-list-header">-->
+            <!--              <div class="header-column name-column">文件名</div>-->
+            <!--              <div class="header-column type-column">类型</div>-->
+            <!--              <div class="header-column date-column">修改日期</div>-->
+            <!--              <div class="header-column size-column">大小</div>-->
+            <!--              <div class="header-column actions-column">操作</div>-->
+            <!--            </div>-->
 
             <div class="file-grid">
               <div
@@ -747,21 +747,22 @@ onMounted(() => {
 
 .file-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 0.3fr));
-  gap: 1.5rem;
-  padding: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 0.25fr));
+  gap: 1rem;
+  padding: 1.5rem;
 }
 
 .file-card {
   position: relative;
   background: #f8fafc;
-  border-radius: 0.5rem;
+  border-radius: 0.375rem;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  padding: 1.2rem 1rem 2.5rem 1rem;
+  padding: 0.5rem;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   min-height: 140px;
+  width: 100px;
   transition: box-shadow 0.2s;
 }
 
@@ -774,40 +775,46 @@ onMounted(() => {
 }
 
 .file-icon {
-  font-size: 3.5rem;
-  margin-bottom: 0.7rem;
-
+  font-size: 4.5rem;
+  margin-bottom: 0.3rem;
+  flex-shrink: 0;
 }
 
 .file-name {
   font-weight: 500;
-  font-size: 1rem;
-  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  text-align: center;
   word-break: break-all;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .lock-icon {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: 0.3rem;
+  right: 0.3rem;
   color: #3b82f6;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .file-actions {
   position: absolute;
-  right: 0.7rem;
-  bottom: 0.7rem;
+  bottom: 0.3rem;
+  right: 0.3rem;
   display: flex;
-  gap: 0.5rem;
+  gap: 0.3rem;
 }
 
 .file-actions button {
   background: #e2e8f0;
   border: none;
   border-radius: 50%;
-  width: 2rem;
-  height: 2rem;
+  width: 1.8rem;
+  height: 1.8rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -820,49 +827,6 @@ onMounted(() => {
   background: #3b82f6;
   color: #fff;
 }
-
-
-.file-icon {
-  margin-right: 0.75rem;
-  font-size: 1.25rem;
-}
-
-.file-name {
-  flex: 1;
-}
-
-.lock-icon {
-  margin-left: 0.5rem;
-  color: #3b82f6;
-  font-size: 0.85rem;
-}
-
-.file-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 50%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #64748b;
-}
-
-.action-btn:hover {
-  background-color: #f1f5f9;
-  color: #1e293b;
-}
-
-
 
 .empty-state {
   display: flex;
@@ -1396,6 +1360,44 @@ input:checked + .slider:before {
     width: 100%;
     margin-bottom: 0.5rem;
   }
+
+  .file-grid {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 0.25fr));
+    gap: 0.8rem;
+    padding: 1rem;
+  }
+
+  .file-card {
+    min-height: 120px;
+    width: 90px;
+    padding: 0.4rem;
+  }
+
+  .file-icon {
+    font-size: 4rem;
+  }
+
+  .file-name {
+    font-size: 0.8rem;
+    max-width: 85%;
+  }
+
+  .lock-icon {
+    top: 0.2rem;
+    right: 0.2rem;
+    font-size: 0.8rem;
+  }
+
+  .file-actions {
+    bottom: 0.2rem;
+    right: 0.2rem;
+    gap: 0.2rem;
+  }
+
+  .file-actions button {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1411,8 +1413,43 @@ input:checked + .slider:before {
     padding: 0.75rem;
   }
 
+  .file-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 0.25fr));
+    gap: 0.6rem;
+    padding: 0.8rem;
+  }
 
+  .file-card {
+    min-height: 100px;
+    width: 80px;
+    padding: 0.3rem;
+  }
 
+  .file-icon {
+    font-size: 3.5rem;
+    margin-bottom: 0.2rem;
+  }
 
+  .file-name {
+    font-size: 0.75rem;
+    max-width: 80%;
+  }
+
+  .lock-icon {
+    top: 0.15rem;
+    right: 0.15rem;
+    font-size: 0.7rem;
+  }
+
+  .file-actions {
+    bottom: 0.15rem;
+    right: 0.15rem;
+    gap: 0.15rem;
+  }
+
+  .file-actions button {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
 }
 </style>
