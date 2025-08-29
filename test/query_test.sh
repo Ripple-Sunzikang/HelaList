@@ -8,7 +8,7 @@ fi
 USERNAME=$1
 PASSWORD=$2
 LOGIN_URL="http://localhost:8080/api/user/login"
-LIST_URL="http://localhost:8080/api/fs/list/localwebdav?refresh=true"
+LIST_URL="http://localhost:8080/api/fs/list/?refresh=true"
 
 # 登录获取token
 LOGIN_RESPONSE=$(curl -s -X POST "$LOGIN_URL" \
