@@ -50,6 +50,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "MKCOL":
 			status, err = h.handleMkcol(brw, r)
 		case "MOVE":
+			status, err = h.handleCopyMove(brw, r)
+		case "COPY":
+			status, err = h.handleCopyMove(brw, r)
 		}
 	}
 
@@ -259,6 +262,90 @@ func (h *Handler) handleMkcol(w http.ResponseWriter, r *http.Request) (status in
 		return http.StatusMethodNotAllowed, err
 	}
 	return http.StatusCreated, nil
+}
+
+func (h *Handler) handleCopyMove(w http.ResponseWriter, r *http.Request) (status int, err error) {
+	hdr := r.Header.Get("Destination")
+	if hdr == "" {
+		return http.StatusBadRequest, errInvalidDestination
+	}
+	u, err := url.Parse(hdr)
+	if err != nil {
+		return http.StatusBadRequest, errInvalidDestination
+	}
+	if u.Host != "" && u.Host != r.Host {
+		return http.StatusBadGateway, errInvalidDestination
+	}
+
+	src, status, err := h.stripPrefix(r.URL.Path)
+	if err != nil {
+		return status, err
+	}
+
+	dst, status, err := h.stripPrefix(u.Path)
+	if err != nil {
+		return status, err
+	}
+
+	if dst == "" {
+		return http.StatusBadGateway, errInvalidDestination
+	}
+	if dst == src {
+		return http.StatusForbidden, errDestinationEqualsSource
+	}
+
+	ctx := r.Context()
+	user := ctx.Value(configs.UserKey).(*model.User)
+	src, err = user.JoinPath(src)
+	if err != nil {
+		return 403, err
+	}
+	dst, err = user.JoinPath(dst)
+	if err != nil {
+		return 403, err
+	}
+
+	if r.Method == "COPY" {
+		// Section 7.5.1 says that a COPY only needs to lock the destination,
+		// not both destination and source. Strictly speaking, this is racy,
+		// even though a COPY doesn't modify the source, if a concurrent
+		// operation modifies the source. However, the litmus test explicitly
+		// checks that COPYing a locked-by-another source is OK.
+		release, status, err := h.confirmLocks(r, "", dst)
+		if err != nil {
+			return status, err
+		}
+		defer release()
+
+		// Section 9.8.3 says that "The COPY method on a collection without a Depth
+		// header must act as if a Depth header with value "infinity" was included".
+		depth := infiniteDepth
+		if hdr := r.Header.Get("Depth"); hdr != "" {
+			depth = parseDepth(hdr)
+			if depth != 0 && depth != infiniteDepth {
+				// Section 9.8.3 says that "A client may submit a Depth header on a
+				// COPY on a collection with a value of "0" or "infinity"."
+				return http.StatusBadRequest, errInvalidDepth
+			}
+		}
+		return copyFiles(ctx, src, dst, r.Header.Get("Overwrite") != "F")
+	}
+
+	release, status, err := h.confirmLocks(r, src, dst)
+	if err != nil {
+		return status, err
+	}
+	defer release()
+
+	// Section 9.9.2 says that "The MOVE method on a collection must act as if
+	// a "Depth: infinity" header was used on it. A client must not submit a
+	// Depth header on a MOVE on a collection with any value but "infinity"."
+	if hdr := r.Header.Get("Depth"); hdr != "" {
+		if parseDepth(hdr) != infiniteDepth {
+			return http.StatusBadRequest, errInvalidDepth
+		}
+	}
+	return moveFiles(ctx, src, dst, r.Header.Get("Overwrite") == "T")
 }
 
 const (

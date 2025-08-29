@@ -42,34 +42,13 @@ func FsListHandler(c *gin.Context) {
 		return
 	}
 
-	// meta, err := op.GetNearestMeta(reqPath)
-	// if err != nil {
-	// 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-	// 		common.ErrorResponse(c, err, 500)
-	// 		return
-	// 	}
-	// }
-
 	objs, err := fs.List(c.Request.Context(), reqPath, &fs.ListArgs{Refresh: req.Refresh})
 	if err != nil {
 		common.ErrorResponse(c, err, 500)
 		return
 	}
 
-	// // 现在并不很需要分页
-	// total := len(objs)
-	// start := (req.Page - 1) * req.PerPage
-	// if start < 0 {
-	// 	start = 0
-	// }
-	// end := start + req.PerPage
-	// if end > total {
-	// 	end = total
-	// }
-	// paginatedObjs := objs[start:end]
-
 	resp := FsListResp{
-		// 直接转换完整的 objs 列表，而不是分页后的 paginatedObjs
 		Content: toObjsResp(objs, reqPath),
 		Total:   int64(len(objs)),
 		Write:   true,
@@ -107,14 +86,6 @@ func FsDirsHandler(c *gin.Context) {
 		return
 	}
 
-	// meta, err := op.GetNearestMeta(reqPath)
-	// if err != nil {
-	// 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-	// 		common.ErrorResponse(c, err, 500)
-	// 		return
-	// 	}
-	// }
-
 	objs, err := fs.List(c.Request.Context(), reqPath, &fs.ListArgs{})
 	if err != nil {
 		common.ErrorResponse(c, err, 500)
@@ -150,14 +121,6 @@ func FsGetHandler(c *gin.Context) {
 		common.ErrorResponse(c, err, 403)
 		return
 	}
-
-	// meta, err := op.GetNearestMeta(reqPath)
-	// if err != nil {
-	// 	if !errors.Is(err, gorm.ErrRecordNotFound) {
-	// 		common.ErrorResponse(c, err, 500)
-	// 		return
-	// 	}
-	// }
 
 	obj, err := fs.Get(c.Request.Context(), reqPath)
 	if err != nil {
@@ -225,6 +188,70 @@ func FsMkdir(c *gin.Context) {
 	common.SuccessResponse(c)
 }
 
+// FsCopyMoveReq defines the request structure for copy and move operations.
+type FsCopyMoveReq struct {
+	SrcPath string `json:"src_path" binding:"required"`
+	DstPath string `json:"dst_path" binding:"required"`
+}
+
+// FsCopyHandler handles the file/folder copy operation.
+func FsCopyHandler(c *gin.Context) {
+	var req FsCopyMoveReq
+	if err := c.ShouldBind(&req); err != nil {
+		common.ErrorResponse(c, err, 400)
+		return
+	}
+
+	user := c.Request.Context().Value(configs.UserKey).(*model.User)
+
+	srcPath, err := user.JoinPath(req.SrcPath)
+	if err != nil {
+		common.ErrorResponse(c, err, 403)
+		return
+	}
+	dstPath, err := user.JoinPath(req.DstPath)
+	if err != nil {
+		common.ErrorResponse(c, err, 403)
+		return
+	}
+
+	if err := fs.Copy(c.Request.Context(), srcPath, dstPath); err != nil {
+		common.ErrorResponse(c, err, 500)
+		return
+	}
+
+	common.SuccessResponse(c)
+}
+
+// FsMoveHandler handles the file/folder move operation.
+func FsMoveHandler(c *gin.Context) {
+	var req FsCopyMoveReq
+	if err := c.ShouldBind(&req); err != nil {
+		common.ErrorResponse(c, err, 400)
+		return
+	}
+
+	user := c.Request.Context().Value(configs.UserKey).(*model.User)
+
+	srcPath, err := user.JoinPath(req.SrcPath)
+	if err != nil {
+		common.ErrorResponse(c, err, 403)
+		return
+	}
+	dstPath, err := user.JoinPath(req.DstPath)
+	if err != nil {
+		common.ErrorResponse(c, err, 403)
+		return
+	}
+
+	if err := fs.Move(c.Request.Context(), srcPath, dstPath); err != nil {
+		common.ErrorResponse(c, err, 500)
+		return
+	}
+
+	common.SuccessResponse(c)
+}
+
 func toObjResp(obj model.Obj, parent string) ObjResp {
 	return ObjResp{
 		Id:       obj.GetId().String(),
@@ -237,10 +264,63 @@ func toObjResp(obj model.Obj, parent string) ObjResp {
 	}
 }
 
+// RenameReq defines the request structure for rename operation.
 type RenameReq struct {
-	Path      string `json:"path"`
-	Name      string `json:"name"`
-	Overwrite bool   `json:"overwrite"`
+	Path string `json:"path" binding:"required"`
+	Name string `json:"name" binding:"required"`
+}
+
+// FsRenameHandler handles the file/folder rename operation.
+func FsRenameHandler(c *gin.Context) {
+	var req RenameReq
+	if err := c.ShouldBind(&req); err != nil {
+		common.ErrorResponse(c, err, 400)
+		return
+	}
+
+	user := c.Request.Context().Value(configs.UserKey).(*model.User)
+
+	reqPath, err := user.JoinPath(req.Path)
+	if err != nil {
+		common.ErrorResponse(c, err, 403)
+		return
+	}
+
+	if err := fs.Rename(c.Request.Context(), reqPath, req.Name); err != nil {
+		common.ErrorResponse(c, err, 500)
+		return
+	}
+
+	common.SuccessResponse(c)
+}
+
+// FsRemoveReq defines the request structure for remove operation.
+type FsRemoveReq struct {
+	Path string `json:"path" binding:"required"`
+}
+
+// FsRemoveHandler handles the file/folder remove operation.
+func FsRemoveHandler(c *gin.Context) {
+	var req FsRemoveReq
+	if err := c.ShouldBind(&req); err != nil {
+		common.ErrorResponse(c, err, 400)
+		return
+	}
+
+	user := c.Request.Context().Value(configs.UserKey).(*model.User)
+
+	reqPath, err := user.JoinPath(req.Path)
+	if err != nil {
+		common.ErrorResponse(c, err, 403)
+		return
+	}
+
+	if err := fs.Remove(c.Request.Context(), reqPath); err != nil {
+		common.ErrorResponse(c, err, 500)
+		return
+	}
+
+	common.SuccessResponse(c)
 }
 
 func checkRelativePath(path string) error {

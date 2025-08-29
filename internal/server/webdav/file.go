@@ -6,6 +6,7 @@ package webdav
 
 import (
 	"context"
+	"net/http"
 	"path"
 	"path/filepath"
 
@@ -27,48 +28,45 @@ func slashClean(name string) string {
 // moveFiles moves files and/or directories from src to dst.
 //
 // See section 9.9.4 for when various HTTP status codes apply.
-// func moveFiles(ctx context.Context, src, dst string, overwrite bool) (status int, err error) {
-// 	srcDir := path.Dir(src)
-// 	dstDir := path.Dir(dst)
-// 	srcName := path.Base(src)
-// 	dstName := path.Base(dst)
-// 	user := ctx.Value(configs.UserKey).(*model.User)
-// 	if srcDir != dstDir {
-// 		return http.StatusForbidden, nil
-// 	}
-// 	if srcName != dstName {
-// 		return http.StatusForbidden, nil
-// 	}
-// 	if srcDir == dstDir {
-// 		err = fs.Rename(ctx, src, dstName)
-// 	} else {
-// 		_, err = fs.Move(context.WithValue(ctx, configs.NoTaskKey, struct{}{}), src, dstDir)
-// 		if err != nil {
-// 			return http.StatusInternalServerError, err
-// 		}
-// 		if srcName != dstName {
-// 			err = fs.Rename(ctx, path.Join(dstDir, srcName), dstName)
-// 		}
-// 	}
-// 	if err != nil {
-// 		return http.StatusInternalServerError, err
-// 	}
-// 	// TODO if there are no files copy, should return 204
-// 	return http.StatusCreated, nil
-// }
+func moveFiles(ctx context.Context, src, dst string, overwrite bool) (status int, err error) {
+	srcDir := path.Dir(src)
+	dstDir := path.Dir(dst)
+	srcName := path.Base(src)
+	dstName := path.Base(dst)
+	// user := ctx.Value(configs.UserKey).(*model.User)
+	if srcDir != dstDir {
+		return http.StatusForbidden, nil
+	}
+	if srcName != dstName {
+		return http.StatusForbidden, nil
+	}
+	if srcDir == dstDir {
+		err = fs.Rename(ctx, src, dstName)
+	} else {
+		err = fs.Move(context.WithValue(ctx, configs.NoTaskKey, struct{}{}), src, dstDir)
+		if err != nil {
+			return http.StatusInternalServerError, err
+		}
+		if srcName != dstName {
+			err = fs.Rename(ctx, path.Join(dstDir, srcName), dstName)
+		}
+	}
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	// TODO if there are no files copy, should return 204
+	return http.StatusCreated, nil
+}
 
-// // copyFiles copies files and/or directories from src to dst.
-// //
-// // See section 9.8.5 for when various HTTP status codes apply.
-// func copyFiles(ctx context.Context, src, dst string, overwrite bool) (status int, err error) {
-// 	dstDir := path.Dir(dst)
-// 	_, err = fs.Copy(context.WithValue(ctx, conf.NoTaskKey, struct{}{}), src, dstDir)
-// 	if err != nil {
-// 		return http.StatusInternalServerError, err
-// 	}
-// 	// TODO if there are no files copy, should return 204
-// 	return http.StatusCreated, nil
-// }
+func copyFiles(ctx context.Context, src, dst string, overwrite bool) (status int, err error) {
+	dstDir := path.Dir(dst)
+	err = fs.Copy(context.WithValue(ctx, configs.NoTaskKey, struct{}{}), src, dstDir)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	// TODO if there are no files copy, should return 204
+	return http.StatusCreated, nil
+}
 
 // walkFS traverses filesystem fs starting at name up to depth levels.
 //

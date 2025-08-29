@@ -72,3 +72,21 @@ func Remove(ctx context.Context, path string) error {
 	}
 	return err
 }
+
+func Move(ctx context.Context, srcPath, dstPath string, lazyCache ...bool) error {
+	err := move(ctx, srcPath, dstPath, lazyCache...)
+	if err != nil {
+		// 遵循该文件中其他函数的错误处理风格
+		fmt.Errorf("failed move %s to %s: %+v", srcPath, dstPath, err)
+	}
+	return err
+}
+
+func Copy(ctx context.Context, srcPath, dstPath string, lazyCache ...bool) error {
+	err := copy(ctx, srcPath, dstPath, lazyCache...)
+	if err != nil {
+		// 遵循该文件中其他函数的错误处理风格
+		fmt.Errorf("failed copy %s to %s: %+v", srcPath, dstPath, err)
+	}
+	return err
+}
