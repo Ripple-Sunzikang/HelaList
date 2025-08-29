@@ -5,12 +5,17 @@ import (
 	"context"
 )
 
+/*
+接口层本身并不难实现，但问题更多地出现在，如何配置一个人人看得懂的接口，
+我们看到隔壁的OpenList能够兼容几乎所有的网盘项目，也正因如此，他的接口设计才
+极具抽象性，可读性极差。
+*/
+
 type Config struct {
 	Name      string `json:"name"`
 	LocalSort bool   `json:"local_sort"`
 	// if the driver returns Link with MFile, this should be set to true
 	OnlyLinkMFile bool `json:"only_local"`
-	OnlyProxy     bool `json:"only_proxy"`
 	NoCache       bool `json:"no_cache"`
 	NoUpload      bool `json:"no_upload"`
 	// if need get message from user, such as validate code
@@ -21,11 +26,9 @@ type Config struct {
 	Alert string `json:"alert"`
 	// whether to support overwrite upload
 	NoOverwriteUpload bool `json:"-"`
-	ProxyRangeOption  bool `json:"-"`
-	// if the driver returns Link without URL, this should be set to true
-	NoLinkURL bool `json:"-"`
 }
 
+// 对一个网盘的接口抽象
 type Driver interface {
 	Meta   // 网盘元数据
 	Reader // 网盘读取操作
@@ -66,34 +69,6 @@ type GetObjInfo interface {
 	GetObjInfo(ctx context.Context, path string) (model.Obj, error)
 }
 
-// type Put interface {
-// 	// Put a file (provided as a FileStreamer) into the driver
-// 	// Besides the most basic upload functionality, the following features also need to be implemented:
-// 	// 1. Canceling (when `<-ctx.Done()` returns), which can be supported by the following methods:
-// 	//   (1) Use request methods that carry context, such as the following:
-// 	//      a. http.NewRequestWithContext
-// 	//      b. resty.Request.SetContext
-// 	//      c. s3manager.Uploader.UploadWithContext
-// 	//      d. utils.CopyWithCtx
-// 	//   (2) Use a `driver.ReaderWithCtx` or `driver.NewLimitedUploadStream`
-// 	//   (3) Use `utils.IsCanceled` to check if the upload has been canceled during the upload process,
-// 	//       this is typically applicable to chunked uploads.
-// 	// 2. Submit upload progress (via `up`) in real-time. There are three recommended ways as follows:
-// 	//   (1) Use `utils.CopyWithCtx`
-// 	//   (2) Use `driver.ReaderUpdatingProgress`
-// 	//   (3) Use `driver.Progress` with `io.TeeReader`
-// 	// 3. Slow down upload speed (via `stream.ServerUploadLimit`). It requires you to wrap the read stream
-// 	//    in a `driver.RateLimitReader` or a `driver.RateLimitFile` after calculating the file's hash and
-// 	//    before uploading the file or file chunks. Or you can directly call `driver.ServerUploadLimitWaitN`
-// 	//    if your file chunks are sufficiently small (less than about 50KB).
-// 	// NOTE that the network speed may be significantly slower than the stream's read speed. Therefore, if
-// 	// you use a `errgroup.Group` to upload each chunk in parallel, you should use `Group.SetLimit` to
-// 	// limit the maximum number of upload threads, preventing excessive memory usage caused by buffering
-// 	// too many file chunks awaiting upload.
-// 	Put(ctx context.Context, dstDir model.Obj, file model.FileStreamer, up UpdateProgress) error
-// }
-
-// 写操作相关接口(好多)
 /*
 注意，因为Obj包含了文件/文件夹两种情况，
 所以，为了区分二者，在函数参数里，有时命名会刻意区分Obj和Dir
@@ -119,29 +94,6 @@ type Remove interface {
 }
 
 type Put interface {
-	// Put a file (provided as a FileStreamer) into the driver
-	// Besides the most basic upload functionality, the following features also need to be implemented:
-	// 1. Canceling (when `<-ctx.Done()` returns), which can be supported by the following methods:
-	//   (1) Use request methods that carry context, such as the following:
-	//      a. http.NewRequestWithContext
-	//      b. resty.Request.SetContext
-	//      c. s3manager.Uploader.UploadWithContext
-	//      d. utils.CopyWithCtx
-	//   (2) Use a `driver.ReaderWithCtx` or `driver.NewLimitedUploadStream`
-	//   (3) Use `utils.IsCanceled` to check if the upload has been canceled during the upload process,
-	//       this is typically applicable to chunked uploads.
-	// 2. Submit upload progress (via `up`) in real-time. There are three recommended ways as follows:
-	//   (1) Use `utils.CopyWithCtx`
-	//   (2) Use `driver.ReaderUpdatingProgress`
-	//   (3) Use `driver.Progress` with `io.TeeReader`
-	// 3. Slow down upload speed (via `stream.ServerUploadLimit`). It requires you to wrap the read stream
-	//    in a `driver.RateLimitReader` or a `driver.RateLimitFile` after calculating the file's hash and
-	//    before uploading the file or file chunks. Or you can directly call `driver.ServerUploadLimitWaitN`
-	//    if your file chunks are sufficiently small (less than about 50KB).
-	// NOTE that the network speed may be significantly slower than the stream's read speed. Therefore, if
-	// you use a `errgroup.Group` to upload each chunk in parallel, you should use `Group.SetLimit` to
-	// limit the maximum number of upload threads, preventing excessive memory usage caused by buffering
-	// too many file chunks awaiting upload.
 	Put(ctx context.Context, dstDir model.Obj, file model.FileStreamer, up UpdateProgress) error
 }
 
@@ -149,14 +101,7 @@ type Reference interface {
 	InitReference(storage Driver) error
 }
 
-//type WriteResult interface {
-//	MkdirResult
-//	MoveResult
-//	RenameResult
-//	CopyResult
-//	PutResult
-//	Remove
-//}
+// 以下为带结果返回，唯一区别是返回对应Obj
 
 type MkdirResult interface {
 	MakeDir(ctx context.Context, parentDir model.Obj, dirName string) (model.Obj, error)
@@ -175,29 +120,6 @@ type CopyResult interface {
 }
 
 type PutResult interface {
-	// Put a file (provided as a FileStreamer) into the driver and return the put obj
-	// Besides the most basic upload functionality, the following features also need to be implemented:
-	// 1. Canceling (when `<-ctx.Done()` returns), which can be supported by the following methods:
-	//   (1) Use request methods that carry context, such as the following:
-	//      a. http.NewRequestWithContext
-	//      b. resty.Request.SetContext
-	//      c. s3manager.Uploader.UploadWithContext
-	//      d. utils.CopyWithCtx
-	//   (2) Use a `driver.ReaderWithCtx` or `driver.NewLimitedUploadStream`
-	//   (3) Use `utils.IsCanceled` to check if the upload has been canceled during the upload process,
-	//       this is typically applicable to chunked uploads.
-	// 2. Submit upload progress (via `up`) in real-time. There are three recommended ways as follows:
-	//   (1) Use `utils.CopyWithCtx`
-	//   (2) Use `driver.ReaderUpdatingProgress`
-	//   (3) Use `driver.Progress` with `io.TeeReader`
-	// 3. Slow down upload speed (via `stream.ServerUploadLimit`). It requires you to wrap the read stream
-	//    in a `driver.RateLimitReader` or a `driver.RateLimitFile` after calculating the file's hash and
-	//    before uploading the file or file chunks. Or you can directly call `driver.ServerUploadLimitWaitN`
-	//    if your file chunks are sufficiently small (less than about 50KB).
-	// NOTE that the network speed may be significantly slower than the stream's read speed. Therefore, if
-	// you use a `errgroup.Group` to upload each chunk in parallel, you should use `Group.SetLimit` to
-	// limit the maximum number of upload threads, preventing excessive memory usage caused by buffering
-	// too many file chunks awaiting upload.
 	Put(ctx context.Context, dstDir model.Obj, file model.FileStreamer, up UpdateProgress) (model.Obj, error)
 }
 

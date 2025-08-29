@@ -1,11 +1,15 @@
 package driver
 
+// 驱动接口层部分功能函数
+
 import (
 	"HelaList/internal/model"
 	"HelaList/internal/stream"
 	"context"
 	"io"
 )
+
+// 进度条相关，在涉及文件上传/下载时发挥作用
 
 type UpdateProgress = model.UpdateProgress
 
@@ -28,6 +32,8 @@ func NewProgress(total int64, up UpdateProgress) *Progress {
 		up:    up,
 	}
 }
+
+// 文件流相关
 
 type RateLimitReader = stream.RateLimitReader
 

@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// putDirect put the file and return after finish
 func putDirectly(ctx context.Context, dstDirPath string, file model.FileStreamer, lazyCache ...bool) error {
 	storage, dstDirActualPath, err := op.GetStorageAndActualPath(dstDirPath)
 	if err != nil {

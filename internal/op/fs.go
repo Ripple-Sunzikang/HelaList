@@ -4,7 +4,6 @@ import (
 	"HelaList/configs"
 	"HelaList/internal/driver"
 	"HelaList/internal/model"
-	"HelaList/internal/stream"
 	"context"
 	"fmt"
 	"slices"
@@ -22,7 +21,7 @@ import (
 )
 
 /*
-本着尽可能原创的精神，本项目已经在尽最大可能不要去直接剽窃他人成果了。
+本着尽可能原创的精神，本项目已经在尽最大可能不要去直接挪用他人的成品了。
 当然，一些成品第三方库是可以使用的。
 但是，但是，OpenList的库我不想用，不然这和抄袭有什么区别？
 但从实际来说，singleflight和go-cache都是基于其他人的库进行设计的。
@@ -40,7 +39,8 @@ func Key(storage driver.Driver, path string) string {
 	return stdpath.Join(storage.GetStorage().MountPath, path)
 }
 
-// 缓存替换算法
+// 缓存部分
+
 func updateCacheObj(storage driver.Driver, path string, oldObj model.Obj, newObj model.Obj) {
 	key := Key(storage, path)
 	objs, ok := listCache.Get(key) // 获取该路径对应缓存
@@ -119,7 +119,78 @@ func addCacheObj(storage driver.Driver, path string, newObj model.Obj) {
 	}
 }
 
-// 以上，缓存功能到此为止。几乎都是靠调库实现的。
+// 下面部分主要负责实现fs层的底层设计
+
+// Wrap是显示名映射功能，GetUnwrap负责解开映射
+func GetUnwrap(ctx context.Context, storage driver.Driver, path string) (model.Obj, error) {
+	obj, err := Get(ctx, storage, path)
+	if err != nil {
+		return nil, err
+	}
+	return model.UnwrapObj(obj), err
+}
+
+func Get(ctx context.Context, storage driver.Driver, path string) (model.Obj, error) {
+	if g, ok := storage.(driver.Getter); ok {
+		obj, err := g.Get(ctx, path)
+		if err == nil {
+			return model.WrapObjName(obj), nil
+		}
+	}
+
+	// 对路径是根目录的情况
+	if path == "/" {
+		var rootObj model.Obj
+		if getRooter, ok := storage.(driver.GetRooter); ok {
+			obj, err := getRooter.GetRoot(ctx)
+			if err != nil {
+				return nil, errors.WithMessage(err, "failed get root obj")
+			}
+			rootObj = obj
+		} else {
+			switch r := storage.GetAddition().(type) {
+			case driver.IRootId:
+				rootObj = &model.Object{
+					Id:           r.GetRootId(),
+					Name:         "root",
+					Size:         0,
+					ModifiedTime: storage.GetStorage().ModifiedTime,
+					IsFolder:     true,
+				}
+			case driver.IRootPath:
+				rootObj = &model.Object{
+					Path:         r.GetRootPath(),
+					Name:         "root",
+					Size:         0,
+					ModifiedTime: storage.GetStorage().ModifiedTime,
+					IsFolder:     true,
+				}
+			default:
+				return nil, errors.Errorf("please implement IRootPath or IRootId or GetRooter method")
+			}
+		}
+		if rootObj == nil {
+			return nil, errors.Errorf("please implement IRootPath or IRootId or GetRooter method")
+		}
+		return &model.ObjWrapName{
+			Name: "root",
+			Obj:  rootObj,
+		}, nil
+	}
+
+	// 路径不是根目录的情况
+	dir, name := stdpath.Split(path)
+	files, err := List(ctx, storage, dir, model.ListArgs{})
+	if err != nil {
+		return nil, errors.WithMessage(err, "failed get parent list")
+	}
+	for _, f := range files {
+		if f.GetName() == name {
+			return model.WrapObjName(f), nil
+		}
+	}
+	return nil, errors.Errorf("object not found: %s", path)
+}
 
 // 列举storage中的文件，但不包含虚拟文件
 func List(ctx context.Context, storage driver.Driver, path string, args model.ListArgs) ([]model.Obj, error) {
@@ -177,76 +248,6 @@ func List(ctx context.Context, storage driver.Driver, path string, args model.Li
 	return objs, err
 }
 
-func Get(ctx context.Context, storage driver.Driver, path string) (model.Obj, error) {
-	if g, ok := storage.(driver.Getter); ok {
-		obj, err := g.Get(ctx, path)
-		if err == nil {
-			return model.WrapObjName(obj), nil
-		}
-	}
-
-	// is root folder
-	if path == "/" {
-		var rootObj model.Obj
-		if getRooter, ok := storage.(driver.GetRooter); ok {
-			obj, err := getRooter.GetRoot(ctx)
-			if err != nil {
-				return nil, errors.WithMessage(err, "failed get root obj")
-			}
-			rootObj = obj
-		} else {
-			switch r := storage.GetAddition().(type) {
-			case driver.IRootId:
-				rootObj = &model.Object{
-					Id:           r.GetRootId(),
-					Name:         "root",
-					Size:         0,
-					ModifiedTime: storage.GetStorage().ModifiedTime,
-					IsFolder:     true,
-				}
-			case driver.IRootPath:
-				rootObj = &model.Object{
-					Path:         r.GetRootPath(),
-					Name:         "root",
-					Size:         0,
-					ModifiedTime: storage.GetStorage().ModifiedTime,
-					IsFolder:     true,
-				}
-			default:
-				return nil, errors.Errorf("please implement IRootPath or IRootId or GetRooter method")
-			}
-		}
-		if rootObj == nil {
-			return nil, errors.Errorf("please implement IRootPath or IRootId or GetRooter method")
-		}
-		return &model.ObjWrapName{
-			Name: "root",
-			Obj:  rootObj,
-		}, nil
-	}
-
-	// not root folder: try list parent and find by name
-	dir, name := stdpath.Split(path)
-	files, err := List(ctx, storage, dir, model.ListArgs{})
-	if err != nil {
-		return nil, errors.WithMessage(err, "failed get parent list")
-	}
-	for _, f := range files {
-		if f.GetName() == name {
-			return model.WrapObjName(f), nil
-		}
-	}
-	return nil, errors.Errorf("object not found: %s", path)
-}
-
-func GetUnwrap(ctx context.Context, storage driver.Driver, path string) (model.Obj, error) {
-	obj, err := Get(ctx, storage, path)
-	if err != nil {
-		return nil, err
-	}
-	return model.UnwrapObj(obj), err
-}
-
 var mkdirG singleflight.Group[interface{}]
 
 func MakeDir(ctx context.Context, storage driver.Driver, path string, lazyCache ...bool) error {
@@ -266,7 +267,6 @@ func MakeDir(ctx context.Context, storage driver.Driver, path string, lazyCache 
 					return nil, errors.WithMessagef(err, "failed to make parent dir [%s]", parentPath)
 				}
 				parentDir, err := GetUnwrap(ctx, storage, parentPath)
-				// this should not happen
 				if err != nil {
 					return nil, errors.WithMessagef(err, "failed to get parent dir [%s]", parentPath)
 				}
@@ -294,11 +294,9 @@ func MakeDir(ctx context.Context, storage driver.Driver, path string, lazyCache 
 			}
 			return nil, errors.WithMessage(err, "failed to check if dir exists")
 		}
-		// dir exists
 		if f.IsDir() {
 			return nil, nil
 		}
-		// dir to make is a file
 		return nil, errors.New("file exists")
 	})
 	return err
@@ -428,9 +426,8 @@ func Remove(ctx context.Context, storage driver.Driver, path string) error {
 	path = utils.FixAndCleanPath(path)
 	rawObj, err := Get(ctx, storage, path)
 	if err != nil {
-		// if object not found, it's ok
 		if strings.Contains(err.Error(), "object not found") {
-			// log.Debugf("%s have been removed", path)
+			logrus.Debugf("%s have been removed", path)
 			return nil
 		}
 		return errors.WithMessage(err, "failed to get object")
@@ -442,7 +439,8 @@ func Remove(ctx context.Context, storage driver.Driver, path string) error {
 		err = s.Remove(ctx, model.UnwrapObj(rawObj))
 		if err == nil {
 			delCacheObj(storage, dirPath, rawObj)
-			// clear folder cache recursively
+
+			// 清除缓存
 			if rawObj.IsDir() {
 				ClearCache(storage, path)
 			}
@@ -479,13 +477,6 @@ func Put(ctx context.Context, storage driver.Driver, dstDirPath string, file mod
 	if storage.Config().CheckStatus && storage.GetStorage().Status != configs.WORK {
 		return errors.Errorf("storage not init: %s", storage.GetStorage().Status)
 	}
-	// UrlTree PUT
-	if storage.GetStorage().Driver == "UrlTree" {
-		var link string
-		dstDirPath, link = urlTreeSplitLineFormPath(stdpath.Join(dstDirPath, file.GetName()))
-		file = &stream.FileStream{Obj: &model.Object{Name: link}}
-	}
-	// if file exist and size = 0, delete it
 	dstDirPath = utils.FixAndCleanPath(dstDirPath)
 	dstPath := stdpath.Join(dstDirPath, file.GetName())
 	tempName := file.GetName() + ".openlist_to_delete"
@@ -516,7 +507,6 @@ func Put(ctx context.Context, storage driver.Driver, dstDirPath string, file mod
 	if err != nil {
 		return errors.WithMessagef(err, "failed to get dir [%s]", dstDirPath)
 	}
-	// if up is nil, set a default to prevent panic
 	if up == nil {
 		up = func(p float64) {}
 	}
@@ -543,17 +533,18 @@ func Put(ctx context.Context, storage driver.Driver, dstDirPath string, file mod
 	logrus.Debugf("put file [%s] done", file.GetName())
 	if storage.Config().NoOverwriteUpload && fi != nil && fi.GetSize() > 0 {
 		if err != nil {
-			// upload failed, recover old obj
+			// 如果上传失败，就恢复旧文件
 			err := Rename(ctx, storage, tempPath, file.GetName())
 			if err != nil {
 				fmt.Errorf("failed recover old obj: %+v", err)
 			}
 		} else {
-			// upload success, remove old obj
+			// 如果上传成功，就把旧文件删除
 			err := Remove(ctx, storage, tempPath)
 			if err != nil {
 				return err
 			} else {
+				// 目前还没实现Link
 				// key := Key(storage, stdpath.Join(dstDirPath, file.GetName()))
 				// linkCache.Del(key)
 			}

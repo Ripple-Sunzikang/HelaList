@@ -11,8 +11,10 @@ import (
 
 type DriverConstructor func() driver.Driver
 
-var driverMap = map[string]DriverConstructor{}
+var driverMap = map[string]DriverConstructor{} // 在内存中记录总共挂载了哪些网盘
 var driverInfoMap = map[string]driver.Info{}
+
+// 下面所有的内容只专注于一件事：把数据库的网盘数据写到内存里
 
 func RegisterDriver(driver DriverConstructor) {
 	// log.Infof("register driver: [%s]", config.Name)
@@ -80,38 +82,6 @@ func getMainItems(config driver.Config) []driver.Item {
 			Help:     "The cache expiration time for this storage",
 		})
 	}
-	// if config.MustProxy() {
-	// 	items = append(items, driver.Item{
-	// 		Name:     "webdav_policy",
-	// 		Type:     conf.TypeSelect,
-	// 		Default:  "native_proxy",
-	// 		Options:  "use_proxy_url,native_proxy",
-	// 		Required: true,
-	// 	})
-	// } else {
-	// 	items = append(items, []driver.Item{{
-	// 		Name: "web_proxy",
-	// 		Type: conf.TypeBool,
-	// 	}, {
-	// 		Name:     "webdav_policy",
-	// 		Type:     conf.TypeSelect,
-	// 		Options:  "302_redirect,use_proxy_url,native_proxy",
-	// 		Default:  "302_redirect",
-	// 		Required: true,
-	// 	},
-	// 	}...)
-	// 	if config.ProxyRangeOption {
-	// 		item := driver.Item{
-	// 			Name: "proxy_range",
-	// 			Type: conf.TypeBool,
-	// 			Help: "Need to enable proxy",
-	// 		}
-	// 		if config.Name == "139Yun" {
-	// 			item.Default = "true"
-	// 		}
-	// 		items = append(items, item)
-	// 	}
-	// }
 	items = append(items, driver.Item{
 		Name: "down_proxy_url",
 		Type: configs.TypeText,

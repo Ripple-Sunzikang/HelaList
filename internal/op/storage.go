@@ -17,6 +17,7 @@ import (
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 var storagesMap generic_sync.MapOf[string, driver.Driver]
@@ -42,31 +43,30 @@ func CreateStorage(ctx context.Context, storage model.Storage) (uuid.UUID, error
 	storage.ModifiedTime = time.Now()
 	storage.MountPath = utils.FixAndCleanPath(storage.MountPath)
 	var err error
-	//
 	driverName := storage.Driver
 	driverNew, err := GetDriver(driverName)
 	if err != nil {
 		return uuid.Nil, errors.WithMessage(err, "failed get driver new")
 	}
 	storageDriver := driverNew()
-	// insert storage to database
+
+	// 把storage插入数据库
 	err = service.CreateStorage(&storage)
 	if err != nil {
 		return storage.Id, errors.WithMessage(err, "failed create storage in database")
 	}
-	// already has an id
+
 	err = initStorage(ctx, storage, storageDriver)
 	go callStorageHooks("add", storageDriver)
 	if err != nil {
 		return storage.Id, errors.Wrap(err, "failed init storage but storage is already created")
 	}
-	// log.Debugf("storage %+v is created", storageDriver)
+	logrus.Debugf("storage %+v is created", storageDriver)
 	return storage.Id, nil
 }
 
 func LoadStorage(ctx context.Context, storage model.Storage) error {
 	storage.MountPath = utils.FixAndCleanPath(storage.MountPath)
-	// check driver first
 	driverName := storage.Driver
 	driverNew, err := GetDriver(driverName)
 	if err != nil {
@@ -76,7 +76,7 @@ func LoadStorage(ctx context.Context, storage model.Storage) error {
 
 	err = initStorage(ctx, storage, storageDriver)
 	go callStorageHooks("add", storageDriver)
-	// log.Debugf("storage %+v is created", storageDriver)
+	logrus.Debugf("storage %+v is created", storageDriver)
 	return err
 }
 
@@ -98,7 +98,7 @@ func initStorage(ctx context.Context, storage model.Storage, storageDriver drive
 			storagesMap.Store(driverStorage.MountPath, storageDriver)
 		}
 	}()
-	// Unmarshal Addition
+	// Json解析
 	err = utils.Json.UnmarshalFromString(driverStorage.Addition, storageDriver.GetAddition())
 	if err == nil {
 		if ref, ok := storageDriver.(driver.Reference); ok {
@@ -136,7 +136,6 @@ func initStorage(ctx context.Context, storage model.Storage, storageDriver drive
 	return err
 }
 
-// MustSaveDriverStorage call from specific driver
 func MustSaveDriverStorage(driver driver.Driver) {
 	err := saveDriverStorage(driver)
 	if err != nil {
@@ -163,10 +162,8 @@ func getStoragesByPath(path string) []driver.Driver {
 	curSlashCount := 0
 	storagesMap.Range(func(mountPath string, value driver.Driver) bool {
 		mountPath = utils.GetActualMountPath(mountPath)
-		// is this path
 		if utils.IsSubPath(mountPath, path) {
 			slashCount := strings.Count(utils.PathAddSeparatorSuffix(mountPath), "/")
-			// not the longest match
 			if slashCount > curSlashCount {
 				storages = storages[:0]
 				curSlashCount = slashCount
@@ -177,7 +174,6 @@ func getStoragesByPath(path string) []driver.Driver {
 		}
 		return true
 	})
-	// make sure the order is the same for same input
 	sort.Slice(storages, func(i, j int) bool {
 		return storages[i].GetStorage().MountPath < storages[j].GetStorage().MountPath
 	})
@@ -198,7 +194,6 @@ func GetStorageVirtualFilesByPath(prefix string) []model.Obj {
 	set := mapset.NewSet[string]()
 	for _, v := range storages {
 		mountPath := utils.GetActualMountPath(v.GetStorage().MountPath)
-		// Exclude prefix itself and non prefix
 		if len(prefix) >= len(mountPath) || !utils.IsSubPath(prefix, mountPath) {
 			continue
 		}
@@ -234,7 +229,6 @@ func UpdateStorage(ctx context.Context, storage model.Storage) error {
 	}
 	storageDriver, err := GetStorageByMountPath(oldStorage.MountPath)
 	if oldStorage.MountPath != storage.MountPath {
-		// mount path renamed, need to drop the storage
 		storagesMap.Delete(oldStorage.MountPath)
 	}
 	if err != nil {
@@ -247,7 +241,7 @@ func UpdateStorage(ctx context.Context, storage model.Storage) error {
 
 	err = initStorage(ctx, storage, storageDriver)
 	go callStorageHooks("update", storageDriver)
-	//fmt.Debugf("storage %+v is update", storageDriver)
+	logrus.Debugf("storage %+v is update", storageDriver)
 	return err
 }
 

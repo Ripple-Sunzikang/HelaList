@@ -8,7 +8,7 @@ import (
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 )
 
-// 存放一堆参数用的文件
+// 我有点后悔写args.go了，因为这里就是个垃圾场。
 
 type ListArgs struct {
 	ReqPath string
@@ -26,6 +26,8 @@ type OtherArgs struct {
 	Method string
 	Data   interface{}
 }
+
+// 指定范围读取文件相关接口，用于后续实现随机访问文件
 
 type RangeReaderIF interface {
 	RangeRead(ctx context.Context, httpRange http_range.Range) (io.ReadCloser, error)

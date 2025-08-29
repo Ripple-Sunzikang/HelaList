@@ -10,15 +10,61 @@ import (
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 )
 
+type FileCloser struct {
+	File
+	io.Closer
+}
+
+type FileRangeReader struct {
+	RangeReaderIF
+}
+
+// 用于在分享文件时生成URL，文件分享功能待制作
+type Link struct {
+	URL         string        `json:"url"`    // most common way
+	Header      http.Header   `json:"header"` // needed header (for url)
+	RangeReader RangeReaderIF `json:"-"`      // recommended way if can't use URL
+	MFile       File          `json:"-"`      // best for local,smb... file system, which exposes MFile
+
+	Expiration *time.Duration // local cache expire Duration
+
+	//for accelerating request, use multi-thread downloading
+	Concurrency   int   `json:"concurrency"`
+	PartSize      int   `json:"part_size"`
+	ContentLength int64 `json:"-"` // 转码视频、缩略图
+
+	utils.SyncClosers `json:"-"`
+}
+
 // File表示一个支持顺序访问和随机访问的文件，本身为接口，需要依靠底层实现
 type File interface {
 	io.Reader
 	io.ReaderAt
 	io.Seeker
 }
-type FileCloser struct {
-	File
-	io.Closer
+
+// FileStreamer是FileStream的接口
+/*
+不过你不写这个接口其实也可以，因为FileStreamer的实现方案只有FileStream一种
+*/
+type FileStreamer interface {
+	io.Reader
+	utils.ClosersIF
+	Obj
+	GetMimetype() string
+	NeedStore() bool
+	IsForceStreamUpload() bool
+	GetExist() Obj
+	SetExist(Obj)
+	RangeRead(http_range.Range) (io.Reader, error)
+	// if the Stream is not a File and is not cached, returns nil.
+	GetFile() File
+
+	// 与后续写文件相关
+	// for a non-seekable Stream, if Read is called, this function won't work.
+	// caches the full Stream and writes it to writer (if provided, even if the stream is already cached).
+	CacheFullAndWriter(up *UpdateProgress, writer io.Writer) (File, error)
+	SetTmpFile(file File)
 }
 
 func (f *FileCloser) Close() error {
@@ -30,30 +76,6 @@ func (f *FileCloser) Close() error {
 		errs = append(errs, f.Closer.Close())
 	}
 	return errors.Join(errs...)
-}
-
-type FileRangeReader struct {
-	RangeReaderIF
-}
-
-// FileStreamer ->check FileStream for more comments
-type FileStreamer interface {
-	io.Reader
-	utils.ClosersIF
-	Obj
-	GetMimetype() string
-	NeedStore() bool
-	IsForceStreamUpload() bool
-	GetExist() Obj
-	SetExist(Obj)
-	// for a non-seekable Stream, RangeRead supports peeking some data, and CacheFullAndWriter still works
-	RangeRead(http_range.Range) (io.Reader, error)
-	// for a non-seekable Stream, if Read is called, this function won't work.
-	// caches the full Stream and writes it to writer (if provided, even if the stream is already cached).
-	CacheFullAndWriter(up *UpdateProgress, writer io.Writer) (File, error)
-	SetTmpFile(file File)
-	// if the Stream is not a File and is not cached, returns nil.
-	GetFile() File
 }
 
 type UpdateProgress func(percentage float64)
@@ -69,20 +91,4 @@ func UpdateProgressWithRange(inner UpdateProgress, start, end float64) UpdatePro
 		scaled := start + (end-start)*(p/100.0)
 		inner(scaled)
 	}
-}
-
-type Link struct {
-	URL         string        `json:"url"`    // most common way
-	Header      http.Header   `json:"header"` // needed header (for url)
-	RangeReader RangeReaderIF `json:"-"`      // recommended way if can't use URL
-	MFile       File          `json:"-"`      // best for local,smb... file system, which exposes MFile
-
-	Expiration *time.Duration // local cache expire Duration
-
-	//for accelerating request, use multi-thread downloading
-	Concurrency   int   `json:"concurrency"`
-	PartSize      int   `json:"part_size"`
-	ContentLength int64 `json:"-"` // 转码视频、缩略图
-
-	utils.SyncClosers `json:"-"`
 }

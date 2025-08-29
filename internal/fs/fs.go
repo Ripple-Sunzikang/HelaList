@@ -5,11 +5,14 @@ import (
 	"context"
 	"fmt"
 	"log"
-
-	"github.com/sirupsen/logrus"
 )
 
-// 本目录用于实现fileSystem即文件系统的功能，这也是WebDAV不可缺少的重要组成部分。
+// 本目录用于实现fileSystem即文件系统的功能，
+/*
+fs层单独进行文件操作的封装，目前只是实现了普通的文件上传，
+这一层封装并没有实质性的作用。但是后面还会做断点续传，那个时候
+就不会单纯地用PutDirectly函数来进行文件上传了
+*/
 
 type ListArgs struct {
 	Refresh bool // 在与远程存储交互时，用缓存来保存上次获取的文件列表
@@ -62,7 +65,6 @@ func Remove(ctx context.Context, path string) error {
 func Move(ctx context.Context, srcPath, dstPath string, lazyCache ...bool) error {
 	err := move(ctx, srcPath, dstPath, lazyCache...)
 	if err != nil {
-		// 遵循该文件中其他函数的错误处理风格
 		fmt.Errorf("failed move %s to %s: %+v", srcPath, dstPath, err)
 	}
 	return err
@@ -71,7 +73,6 @@ func Move(ctx context.Context, srcPath, dstPath string, lazyCache ...bool) error
 func Copy(ctx context.Context, srcPath, dstPath string, lazyCache ...bool) error {
 	err := copy(ctx, srcPath, dstPath, lazyCache...)
 	if err != nil {
-		// 遵循该文件中其他函数的错误处理风格
 		fmt.Errorf("failed copy %s to %s: %+v", srcPath, dstPath, err)
 	}
 	return err
@@ -81,8 +82,7 @@ func Copy(ctx context.Context, srcPath, dstPath string, lazyCache ...bool) error
 func PutDirectly(ctx context.Context, dstDirPath string, file model.FileStreamer, lazyCache ...bool) error {
 	err := putDirectly(ctx, dstDirPath, file, lazyCache...)
 	if err != nil {
-		// 使用 logrus 记录错误日志，与您提供的 fs/fs.go 文件保持一致
-		logrus.Errorf("failed put %s: %+v", dstDirPath, err)
+		fmt.Errorf("failed put %s: %+v", dstDirPath, err)
 	}
 	return err
 }

@@ -43,6 +43,8 @@ func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	return nil
 }
 
+// 用户身份相关
+
 const (
 	ADMIN = iota //语法糖，ADMIN=0, GUEST=1, GENERAL=2
 	GENERAL
@@ -60,6 +62,8 @@ func (u *User) IsGuest() bool {
 // func (u *User) CanWrite() bool {
 // 	return !u.Disabled && (u.Identity == ADMIN || u.Identity == GENERAL)
 // }
+
+// 密码加密相关
 
 // argon2密码加密所需参数
 const (
@@ -110,7 +114,7 @@ func (u *User) CheckPassword(password string) (bool, error) {
 	return false, nil
 }
 
-// 把请求path加到BasePath的后缀
+// 路径合并功能，把请求path加到BasePath的后缀
 func (u *User) JoinPath(reqPath string) (string, error) {
 	return utils.JoinBasePath(u.BasePath, reqPath)
 }

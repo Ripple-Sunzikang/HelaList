@@ -2,12 +2,13 @@ package op
 
 import (
 	"HelaList/internal/driver"
-	stdpath "path"
 	"strings"
+	"sync/atomic"
 
 	"github.com/OpenListTeam/OpenList/v4/pkg/generic_sync"
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 func GetStorageAndActualPath(rawPath string) (storage driver.Driver, actualPath string, err error) {
@@ -21,42 +22,16 @@ func GetStorageAndActualPath(rawPath string) (storage driver.Driver, actualPath 
 		err = errors.Errorf("storage not found for rawPath: %s", rawPath)
 		return
 	}
-	// log.Debugln("use storage: ", storage.GetStorage().MountPath)
+	logrus.Debugln("use storage: ", storage.GetStorage().MountPath)
 	mountPath := utils.GetActualMountPath(storage.GetStorage().MountPath)
 	actualPath = utils.FixAndCleanPath(strings.TrimPrefix(rawPath, mountPath))
 	return
 }
 
-// urlTreeSplitLineFormPath 分割path中分割真实路径和UrlTree定义字符串
-func urlTreeSplitLineFormPath(path string) (pp string, file string) {
-	// url.PathUnescape 会移除 // ，手动加回去
-	path = strings.Replace(path, "https:/", "https://", 1)
-	path = strings.Replace(path, "http:/", "http://", 1)
-	if strings.Contains(path, ":https:/") || strings.Contains(path, ":http:/") {
-		// URL-Tree模式 /url_tree_drivr/file_name[:size[:time]]:https://example.com/file
-		fPath := strings.SplitN(path, ":", 2)[0]
-		pp, _ = stdpath.Split(fPath)
-		file = path[len(pp):]
-	} else if strings.Contains(path, "/https:/") || strings.Contains(path, "/http:/") {
-		// URL-Tree模式 /url_tree_drivr/https://example.com/file
-		index := strings.Index(path, "/http://")
-		if index == -1 {
-			index = strings.Index(path, "/https://")
-		}
-		pp = path[:index]
-		file = path[index+1:]
-	} else {
-		pp, file = stdpath.Split(path)
-	}
-	if pp == "" {
-		pp = "/"
-	}
-	return
-}
+// 当多个虚拟网盘挂载到同一个文件下时，如果要查找网盘，需要轮询查找
+// 这里我有往上提交pr,建议改成*int64进行原子操作，避免高并行出现混乱
+var balanceMap generic_sync.MapOf[string, *int64]
 
-var balanceMap generic_sync.MapOf[string, int]
-
-// GetBalancedStorage get storage by path
 func GetBalancedStorage(path string) driver.Driver {
 	path = utils.FixAndCleanPath(path)
 	storages := getStoragesByPath(path)
@@ -68,9 +43,11 @@ func GetBalancedStorage(path string) driver.Driver {
 		return storages[0]
 	default:
 		virtualPath := utils.GetActualMountPath(storages[0].GetStorage().MountPath)
-		i, _ := balanceMap.LoadOrStore(virtualPath, 0)
-		i = (i + 1) % storageNum
-		balanceMap.Store(virtualPath, i)
+		// 如果不存在则存入一个新的 *int64(0)，LoadOrStore 会返回已存在的值或新值
+		p, _ := balanceMap.LoadOrStore(virtualPath, new(int64))
+		// 原子自增并转换为 0 基索引
+		idx := atomic.AddInt64(p, 1) - 1
+		i := int(idx % int64(storageNum))
 		return storages[i]
 	}
 }

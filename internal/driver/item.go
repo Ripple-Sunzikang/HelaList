@@ -2,6 +2,8 @@ package driver
 
 import "github.com/google/uuid"
 
+// item负责实现数据库的配置字段
+
 // 用于JSON
 type Additional interface{}
 
@@ -20,20 +22,22 @@ type Info struct {
 	Config     Config `json:"config"`
 }
 
-type IRootPath interface {
-	GetRootPath() string
-}
-
-type IRootId interface {
-	GetRootId() uuid.UUID
-}
-
 type RootPath struct {
 	RootFolderPath string `json:"root_folder_path"`
 }
 
 type RootID struct {
 	RootFolderID string `json:"root_folder_id"`
+}
+
+// 获取根目录
+type IRootPath interface {
+	GetRootPath() string
+}
+
+// 获取根目录的Id
+type IRootId interface {
+	GetRootId() uuid.UUID
 }
 
 func (r RootPath) GetRootPath() string {
@@ -47,3 +51,10 @@ func (r *RootPath) SetRootPath(path string) {
 func (r RootID) GetRootId() string {
 	return r.RootFolderID
 }
+
+// 对应服务器端网盘的挂载目录
+/*
+切记不能挂载到根目录，否则可能会出现根目录权限问题
+项目早期测试以坚果云作为服务器端，部署在了/HelaList目录下而非/根目录，
+就是因为权限问题，绑定根目录会导致坚果云一直返回403
+*/

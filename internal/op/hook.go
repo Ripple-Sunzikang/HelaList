@@ -22,7 +22,7 @@ func HandleObjsUpdateHook(parent string, objs []model.Obj) {
 	}
 }
 
-// Storage
+// Storage用的Hook
 type StorageHook func(typ string, storage driver.Driver)
 
 var storageHooks = make([]StorageHook, 0)

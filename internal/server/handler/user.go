@@ -76,10 +76,6 @@ func CreateUser(c *gin.Context) {
 		common.ErrorResponse(c, err, 400)
 		return
 	}
-	// if request.IsAdmin() || request.IsGuest() {
-	// 	common.ErrorResponse(c, errors.New("error"), 400)
-	// 	return
-	// }
 	request.SetPassword(request.Password)
 	request.Password = ""
 	if err := op.CreateUser(&request); err != nil {

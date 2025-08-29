@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// Copy 仿照Rename函数的参数形式，在同一存储空间内复制对象。
+// 在同一存储空间内复制对象。
 func copy(ctx context.Context, srcPath, dstPath string, lazyCache ...bool) error {
 	srcStorage, srcActualPath, err := op.GetStorageAndActualPath(srcPath)
 	if err != nil {
@@ -26,11 +26,11 @@ func copy(ctx context.Context, srcPath, dstPath string, lazyCache ...bool) error
 		return nil
 	}
 
-	// 如果是跨存储，则返回错误，因为此函数不处理该情况
+	// todo: 跨网盘复制文件
 	return fmt.Errorf("cross-storage copy is not supported by this function")
 }
 
-// Move 仿照Rename函数的参数形式，在同一存储空间内移动对象。
+// 在同一存储空间内移动对象。
 func move(ctx context.Context, srcPath, dstPath string, lazyCache ...bool) error {
 	srcStorage, srcActualPath, err := op.GetStorageAndActualPath(srcPath)
 	if err != nil {
@@ -50,6 +50,6 @@ func move(ctx context.Context, srcPath, dstPath string, lazyCache ...bool) error
 		return nil
 	}
 
-	// 如果是跨存储，则返回错误，因为此函数不处理该情况
+	// todo: 跨网盘移动文件
 	return fmt.Errorf("cross-storage move is not supported by this function")
 }

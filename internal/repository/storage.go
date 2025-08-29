@@ -34,7 +34,6 @@ func GetStorages(pageIndex, pageSize int) ([]model.Storage, int64, error) {
 	return storages, count, nil
 }
 
-// GetStorageById Get Storage by id, used to update storage usually
 func GetStorageById(id uuid.UUID) (*model.Storage, error) {
 	var storage model.Storage
 	storage.Id = id
@@ -44,7 +43,6 @@ func GetStorageById(id uuid.UUID) (*model.Storage, error) {
 	return &storage, nil
 }
 
-// GetStorageByMountPath Get Storage by mountPath, used to update storage usually
 func GetStorageByMountPath(mountPath string) (*model.Storage, error) {
 	var storage model.Storage
 	if err := bootstrap.Db.Where("mount_path = ?", mountPath).First(&storage).Error; err != nil {

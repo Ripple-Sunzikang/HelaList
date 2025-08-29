@@ -16,6 +16,7 @@ import (
 	"github.com/OpenListTeam/OpenList/v4/pkg/http_range"
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 	"github.com/rclone/rclone/lib/mmap"
+	"github.com/sirupsen/logrus"
 	"go4.org/readerutil"
 )
 
@@ -26,13 +27,13 @@ type FileStream struct {
 	Mimetype          string
 	WebPutAsTask      bool
 	ForceStreamUpload bool
-	Exist             model.Obj //the file existed in the destination, we can reuse some info since we wil overwrite it
+	Exist             model.Obj
 	utils.Closers
 
-	tmpFile   model.File //if present, tmpFile has full content, it will be deleted at last
+	tmpFile   model.File // 临时文件
 	peekBuff  *buffer.Reader
 	size      int64
-	oriReader io.Reader // the original reader, used for caching
+	oriReader io.Reader // 用于文件缓存
 }
 
 func (f *FileStream) GetSize() int64 {
@@ -90,8 +91,7 @@ func (f *FileStream) SetExist(obj model.Obj) {
 	f.Exist = obj
 }
 
-// CacheFullAndWriter save all data into tmpFile or memory.
-// It's not thread-safe!
+// 线程不安全，请谨慎使用
 func (f *FileStream) CacheFullAndWriter(up *model.UpdateProgress, writer io.Writer) (model.File, error) {
 	if cache := f.GetFile(); cache != nil {
 		if writer == nil {
@@ -151,8 +151,7 @@ func (f *FileStream) GetFile() model.File {
 	return nil
 }
 
-// RangeRead have to cache all data first since only Reader is provided.
-// It's not thread-safe!
+// RangeRead线程不安全，请谨慎使用
 func (f *FileStream) RangeRead(httpRange http_range.Range) (io.Reader, error) {
 	if httpRange.Length < 0 || httpRange.Start+httpRange.Length > f.GetSize() {
 		httpRange.Length = f.GetSize() - httpRange.Start
@@ -231,19 +230,13 @@ func (f *FileStream) SetTmpFile(file model.File) {
 var _ model.FileStreamer = (*SeekableStream)(nil)
 var _ model.FileStreamer = (*FileStream)(nil)
 
-//var _ seekableStream = (*FileStream)(nil)
-
-// for most internal stream, which is either RangeReadCloser or MFile
-// Any functionality implemented based on SeekableStream should implement a Close method,
-// whose only purpose is to close the SeekableStream object. If such functionality has
-// additional resources that need to be closed, they should be added to the Closer property of
-// the SeekableStream object and be closed together when the SeekableStream object is closed.
 type SeekableStream struct {
 	*FileStream
 	// should have one of belows to support rangeRead
 	rangeReadCloser model.RangeReadCloserIF
 }
 
+// todo: 设计link操作，所以暂时搁置
 // func NewSeekableStream(fs *FileStream, link *model.Link) (*SeekableStream, error) {
 // 	if len(fs.Mimetype) == 0 {
 // 		fs.Mimetype = utils.GetMimeType(fs.Obj.GetName())
@@ -280,7 +273,7 @@ type SeekableStream struct {
 // 	return nil, fmt.Errorf("illegal seekableStream")
 // }
 
-// RangeRead is not thread-safe, pls use it in single thread only.
+// RangeRead线程不安全，谨慎使用
 func (ss *SeekableStream) RangeRead(httpRange http_range.Range) (io.Reader, error) {
 	if ss.GetFile() == nil && ss.rangeReadCloser != nil {
 		rc, err := ss.rangeReadCloser.RangeRead(ss.Ctx, httpRange)
@@ -292,7 +285,6 @@ func (ss *SeekableStream) RangeRead(httpRange http_range.Range) (io.Reader, erro
 	return ss.FileStream.RangeRead(httpRange)
 }
 
-// only provide Reader as full stream when it's demanded. in rapid-upload, we can skip this to save memory
 func (ss *SeekableStream) Read(p []byte) (n int, err error) {
 	if err := ss.generateReader(); err != nil {
 		return 0, err
@@ -467,7 +459,7 @@ func (r *RangeReadReadAtSeeker) getReaderAtOffset(off int64) (io.Reader, error) 
 		r.readerMap.Delete(int64(cur))
 	}
 	if off == int64(cur) {
-		// logrus.Debugf("getReaderAtOffset match_%d", off)
+		logrus.Debugf("getReaderAtOffset match_%d", off)
 		return rr, nil
 	}
 
@@ -475,11 +467,11 @@ func (r *RangeReadReadAtSeeker) getReaderAtOffset(off int64) (io.Reader, error) 
 		n, _ := utils.CopyWithBufferN(io.Discard, rr, off-cur)
 		cur += n
 		if cur == off {
-			// logrus.Debugf("getReaderAtOffset old_%d", off)
+			logrus.Debugf("getReaderAtOffset old_%d", off)
 			return rr, nil
 		}
 	}
-	// logrus.Debugf("getReaderAtOffset new_%d", off)
+	logrus.Debugf("getReaderAtOffset new_%d", off)
 
 	reader, err := r.ss.RangeRead(http_range.Range{Start: off, Length: -1})
 	if err != nil {
