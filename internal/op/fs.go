@@ -4,7 +4,9 @@ import (
 	"HelaList/configs"
 	"HelaList/internal/driver"
 	"HelaList/internal/model"
+	"HelaList/internal/stream"
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 	"github.com/OpenListTeam/go-cache"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 /*
@@ -464,4 +467,97 @@ func Other(ctx context.Context, storage driver.Driver, args model.FsOtherArgs) (
 	} else {
 		return nil, errors.New("not implemented")
 	}
+}
+
+func Put(ctx context.Context, storage driver.Driver, dstDirPath string, file model.FileStreamer, up driver.UpdateProgress, lazyCache ...bool) error {
+	close := file.Close
+	defer func() {
+		if err := close(); err != nil {
+			fmt.Errorf("failed to close file streamer, %v", err)
+		}
+	}()
+	if storage.Config().CheckStatus && storage.GetStorage().Status != configs.WORK {
+		return errors.Errorf("storage not init: %s", storage.GetStorage().Status)
+	}
+	// UrlTree PUT
+	if storage.GetStorage().Driver == "UrlTree" {
+		var link string
+		dstDirPath, link = urlTreeSplitLineFormPath(stdpath.Join(dstDirPath, file.GetName()))
+		file = &stream.FileStream{Obj: &model.Object{Name: link}}
+	}
+	// if file exist and size = 0, delete it
+	dstDirPath = utils.FixAndCleanPath(dstDirPath)
+	dstPath := stdpath.Join(dstDirPath, file.GetName())
+	tempName := file.GetName() + ".openlist_to_delete"
+	tempPath := stdpath.Join(dstDirPath, tempName)
+	fi, err := GetUnwrap(ctx, storage, dstPath)
+	if err == nil {
+		if fi.GetSize() == 0 {
+			err = Remove(ctx, storage, dstPath)
+			if err != nil {
+				return errors.WithMessagef(err, "while uploading, failed remove existing file which size = 0")
+			}
+		} else if storage.Config().NoOverwriteUpload {
+			// try to rename old obj
+			err = Rename(ctx, storage, dstPath, tempName)
+			if err != nil {
+				return err
+			}
+		} else {
+			file.SetExist(fi)
+		}
+	}
+	err = MakeDir(ctx, storage, dstDirPath)
+	if err != nil {
+		return errors.WithMessagef(err, "failed to make dir [%s]", dstDirPath)
+	}
+	parentDir, err := GetUnwrap(ctx, storage, dstDirPath)
+	// this should not happen
+	if err != nil {
+		return errors.WithMessagef(err, "failed to get dir [%s]", dstDirPath)
+	}
+	// if up is nil, set a default to prevent panic
+	if up == nil {
+		up = func(p float64) {}
+	}
+
+	switch s := storage.(type) {
+	case driver.PutResult:
+		var newObj model.Obj
+		newObj, err = s.Put(ctx, parentDir, file, up)
+		if err == nil {
+			if newObj != nil {
+				addCacheObj(storage, dstDirPath, model.WrapObjName(newObj))
+			} else if !utils.IsBool(lazyCache...) {
+				DeleteCache(storage, dstDirPath)
+			}
+		}
+	case driver.Put:
+		err = s.Put(ctx, parentDir, file, up)
+		if err == nil && !utils.IsBool(lazyCache...) {
+			DeleteCache(storage, dstDirPath)
+		}
+	default:
+		return fmt.Errorf("NotImplement")
+	}
+	logrus.Debugf("put file [%s] done", file.GetName())
+	if storage.Config().NoOverwriteUpload && fi != nil && fi.GetSize() > 0 {
+		if err != nil {
+			// upload failed, recover old obj
+			err := Rename(ctx, storage, tempPath, file.GetName())
+			if err != nil {
+				fmt.Errorf("failed recover old obj: %+v", err)
+			}
+		} else {
+			// upload success, remove old obj
+			err := Remove(ctx, storage, tempPath)
+			if err != nil {
+				return err
+			} else {
+				// key := Key(storage, stdpath.Join(dstDirPath, file.GetName()))
+				// linkCache.Del(key)
+			}
+		}
+	}
+	return errors.WithStack(err)
 }

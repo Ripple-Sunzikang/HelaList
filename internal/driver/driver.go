@@ -118,12 +118,32 @@ type Remove interface {
 	Remove(ctx context.Context, obj model.Obj) error
 }
 
-/*
-// Put用于上传文件，而上传/下载文件这种事往往复杂，还需要做文件流
 type Put interface {
-	Put(ctx context.Context, destiDIr model.Obj, )
+	// Put a file (provided as a FileStreamer) into the driver
+	// Besides the most basic upload functionality, the following features also need to be implemented:
+	// 1. Canceling (when `<-ctx.Done()` returns), which can be supported by the following methods:
+	//   (1) Use request methods that carry context, such as the following:
+	//      a. http.NewRequestWithContext
+	//      b. resty.Request.SetContext
+	//      c. s3manager.Uploader.UploadWithContext
+	//      d. utils.CopyWithCtx
+	//   (2) Use a `driver.ReaderWithCtx` or `driver.NewLimitedUploadStream`
+	//   (3) Use `utils.IsCanceled` to check if the upload has been canceled during the upload process,
+	//       this is typically applicable to chunked uploads.
+	// 2. Submit upload progress (via `up`) in real-time. There are three recommended ways as follows:
+	//   (1) Use `utils.CopyWithCtx`
+	//   (2) Use `driver.ReaderUpdatingProgress`
+	//   (3) Use `driver.Progress` with `io.TeeReader`
+	// 3. Slow down upload speed (via `stream.ServerUploadLimit`). It requires you to wrap the read stream
+	//    in a `driver.RateLimitReader` or a `driver.RateLimitFile` after calculating the file's hash and
+	//    before uploading the file or file chunks. Or you can directly call `driver.ServerUploadLimitWaitN`
+	//    if your file chunks are sufficiently small (less than about 50KB).
+	// NOTE that the network speed may be significantly slower than the stream's read speed. Therefore, if
+	// you use a `errgroup.Group` to upload each chunk in parallel, you should use `Group.SetLimit` to
+	// limit the maximum number of upload threads, preventing excessive memory usage caused by buffering
+	// too many file chunks awaiting upload.
+	Put(ctx context.Context, dstDir model.Obj, file model.FileStreamer, up UpdateProgress) error
 }
-*/
 
 type Reference interface {
 	InitReference(storage Driver) error
@@ -152,6 +172,33 @@ type RenameResult interface {
 
 type CopyResult interface {
 	Copy(ctx context.Context, srcObj, dstDir model.Obj) (model.Obj, error)
+}
+
+type PutResult interface {
+	// Put a file (provided as a FileStreamer) into the driver and return the put obj
+	// Besides the most basic upload functionality, the following features also need to be implemented:
+	// 1. Canceling (when `<-ctx.Done()` returns), which can be supported by the following methods:
+	//   (1) Use request methods that carry context, such as the following:
+	//      a. http.NewRequestWithContext
+	//      b. resty.Request.SetContext
+	//      c. s3manager.Uploader.UploadWithContext
+	//      d. utils.CopyWithCtx
+	//   (2) Use a `driver.ReaderWithCtx` or `driver.NewLimitedUploadStream`
+	//   (3) Use `utils.IsCanceled` to check if the upload has been canceled during the upload process,
+	//       this is typically applicable to chunked uploads.
+	// 2. Submit upload progress (via `up`) in real-time. There are three recommended ways as follows:
+	//   (1) Use `utils.CopyWithCtx`
+	//   (2) Use `driver.ReaderUpdatingProgress`
+	//   (3) Use `driver.Progress` with `io.TeeReader`
+	// 3. Slow down upload speed (via `stream.ServerUploadLimit`). It requires you to wrap the read stream
+	//    in a `driver.RateLimitReader` or a `driver.RateLimitFile` after calculating the file's hash and
+	//    before uploading the file or file chunks. Or you can directly call `driver.ServerUploadLimitWaitN`
+	//    if your file chunks are sufficiently small (less than about 50KB).
+	// NOTE that the network speed may be significantly slower than the stream's read speed. Therefore, if
+	// you use a `errgroup.Group` to upload each chunk in parallel, you should use `Group.SetLimit` to
+	// limit the maximum number of upload threads, preventing excessive memory usage caused by buffering
+	// too many file chunks awaiting upload.
+	Put(ctx context.Context, dstDir model.Obj, file model.FileStreamer, up UpdateProgress) (model.Obj, error)
 }
 
 type PutURLResult interface {

@@ -86,5 +86,6 @@ func registerFsRoutes(r *gin.Engine) {
 		fs.POST("/move", handler.FsMoveHandler)
 		fs.POST("/rename", handler.FsRenameHandler)
 		fs.POST("/remove", handler.FsRemoveHandler)
+		fs.POST("/put", handler.FsPutHandler)
 	}
 }
