@@ -39,62 +39,34 @@
 
           <!-- 文件列表 -->
           <div class="file-list">
-            <div class="file-list-header">
-              <div class="header-column name-column">文件名</div>
-              <div class="header-column type-column">类型</div>
-              <div class="header-column date-column">修改日期</div>
-              <div class="header-column size-column">大小</div>
-              <div class="header-column actions-column">操作</div>
-            </div>
+<!--            <div class="file-list-header">-->
+<!--              <div class="header-column name-column">文件名</div>-->
+<!--              <div class="header-column type-column">类型</div>-->
+<!--              <div class="header-column date-column">修改日期</div>-->
+<!--              <div class="header-column size-column">大小</div>-->
+<!--              <div class="header-column actions-column">操作</div>-->
+<!--            </div>-->
 
-            <div class="file-list-body">
-              <!-- 文件夹和文件项 -->
+            <div class="file-grid">
               <div
                 v-for="(item, index) in fileItems"
                 :key="index"
-                class="file-item"
+                class="file-card"
                 :class="{ 'is-locked': item.isLocked }"
               >
-                <div class="file-column name-column">
-                  <i :class="getItemIcon(item.type)" class="file-icon"></i>
-                  <span class="file-name">{{ item.name }}</span>
-                  <i v-if="item.isLocked" class="fas fa-lock lock-icon" title="已加密"></i>
-                </div>
-                <div class="file-column type-column">{{ getItemTypeText(item.type) }}</div>
-                <div class="file-column date-column">{{ formatDate(item.modified) }}</div>
-                <div class="file-column size-column">
-                  {{ item.type === 'folder' ? '-' : formatFileSize(item.size) }}
-                </div>
-                <div class="file-column actions-column">
-                  <div class="file-actions">
-                    <!-- 锁定/解锁按钮 -->
-                    <button
-                      class="action-btn lock-btn"
-                      @click.stop="toggleLock(item)"
-                      :title="item.isLocked ? '解锁文件' : '锁定文件'"
-                    >
-                      <i class="fas" :class="item.isLocked ? 'fa-unlock' : 'fa-lock'"></i>
-                    </button>
-
-                    <!-- 下载按钮 -->
-                    <button
-                      class="action-btn download-btn"
-                      @click.stop="downloadFile(item)"
-                      :disabled="item.type === 'folder'"
-                      title="下载"
-                    >
-                      <i class="fas fa-download"></i>
-                    </button>
-
-                    <!-- 删除按钮 -->
-                    <button
-                      class="action-btn delete-btn"
-                      @click.stop="deleteFile(index)"
-                      title="删除"
-                    >
-                      <i class="fas fa-trash"></i>
-                    </button>
-                  </div>
+                <i :class="getItemIcon(item.type)" class="file-icon"></i>
+                <span class="file-name">{{ item.name }}</span>
+                <i v-if="item.isLocked" class="fas fa-lock lock-icon" title="已加密"></i>
+                <div class="file-actions">
+                  <button @click.stop="toggleLock(item)" :title="item.isLocked ? '解锁文件' : '锁定文件'">
+                    <i class="fas" :class="item.isLocked ? 'fa-unlock' : 'fa-lock'"></i>
+                  </button>
+                  <button @click.stop="downloadFile(item)" :disabled="item.type === 'folder'" title="下载">
+                    <i class="fas fa-download"></i>
+                  </button>
+                  <button @click.stop="deleteFile(index)" title="删除">
+                    <i class="fas fa-trash"></i>
+                  </button>
                 </div>
               </div>
 
@@ -773,31 +745,82 @@ onMounted(() => {
   text-align: right;
 }
 
-.file-list-body {
-  max-height: calc(100vh - 320px);
-  overflow-y: auto;
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 0.3fr));
+  gap: 1.5rem;
+  padding: 2rem;
 }
 
-.file-item {
+.file-card {
+  position: relative;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  padding: 1.2rem 1rem 2.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 140px;
+  transition: box-shadow 0.2s;
+}
+
+.file-card:hover {
+  box-shadow: 0 4px 16px rgba(59,130,246,0.12);
+}
+
+.file-card.is-locked {
+  background: #f0f9ff;
+}
+
+.file-icon {
+  font-size: 3.5rem;
+  margin-bottom: 0.7rem;
+
+}
+
+.file-name {
+  font-weight: 500;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  word-break: break-all;
+}
+
+.lock-icon {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  color: #3b82f6;
+  font-size: 1rem;
+}
+
+.file-actions {
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.7rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.file-actions button {
+  background: #e2e8f0;
+  border: none;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
   display: flex;
   align-items: center;
-  padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid #f1f5f9;
-  transition: background-color 0.2s ease;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
 }
 
-.file-item:hover {
-  background-color: #f8fafc;
+.file-actions button:hover {
+  background: #3b82f6;
+  color: #fff;
 }
 
-.file-item.is-locked {
-  background-color: #f0f9ff;
-}
-
-.file-column {
-  color: #1e293b;
-  font-size: 0.9rem;
-}
 
 .file-icon {
   margin-right: 0.75rem;
@@ -839,22 +862,7 @@ onMounted(() => {
   color: #1e293b;
 }
 
-.lock-btn:hover {
-  color: #3b82f6;
-}
 
-.download-btn:hover {
-  color: #10b981;
-}
-
-.delete-btn:hover {
-  color: #ef4444;
-}
-
-.delete-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
 .empty-state {
   display: flex;
@@ -1402,5 +1410,9 @@ input:checked + .slider:before {
   .header-column, .file-item {
     padding: 0.75rem;
   }
+
+
+
+
 }
 </style>
