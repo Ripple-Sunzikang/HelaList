@@ -51,7 +51,7 @@ type Meta interface {
 // 用于读取路径下的所有文件
 type Reader interface {
 	List(ctx context.Context, dir model.Obj, args model.ListArgs) ([]model.Obj, error)
-	// Link(ctx context.Context, file model.Obj, args model.ListArgs) (*model.Link, error)
+	Link(ctx context.Context, file model.Obj, args model.LinkArgs) (*model.Link, error)
 }
 
 // 获取根目录

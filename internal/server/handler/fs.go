@@ -344,6 +344,38 @@ func checkRelativePath(path string) error {
 	return nil
 }
 
+type LinkReq struct {
+	Path string `json:"path" form:"path" binding:"required"`
+}
+
+func FsLinkHandler(c *gin.Context) {
+	var req LinkReq
+	if err := c.ShouldBind(&req); err != nil {
+		common.ErrorResponse(c, err, 400)
+		return
+	}
+
+	user := c.Request.Context().Value(configs.UserKey).(*model.User)
+	if user.IsGuest() && user.Disabled {
+		common.ErrorResponse(c, errors.New("guest user is disabled"), 401)
+		return
+	}
+
+	reqPath, err := user.JoinPath(req.Path)
+	if err != nil {
+		common.ErrorResponse(c, err, 403)
+		return
+	}
+
+	link, _, err := fs.Link(c.Request.Context(), reqPath, model.LinkArgs{})
+	if err != nil {
+		common.ErrorResponse(c, err, 500)
+		return
+	}
+
+	common.SuccessResponse(c, link)
+}
+
 // 将Obj转为api响应对象
 func toObjsResp(objs []model.Obj, parent string) []ObjResp {
 	var resp []ObjResp

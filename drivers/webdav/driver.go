@@ -98,17 +98,6 @@ func (d *WebDav) List(ctx context.Context, dir model.Obj, args model.ListArgs) (
 	})
 }
 
-// func (d *WebDav) Link(ctx context.Context, file model.Obj, args model.LinkArgs) (*model.Link, error) {
-// 	url, header, err := d.client.Link(file.GetPath())
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return &model.Link{
-// 		URL:    url,
-// 		Header: header,
-// 	}, nil
-// }
-
 func (d *WebDav) MakeDir(ctx context.Context, parentDir model.Obj, dirName string) error {
 	return d.client.MkdirAll(path.Join(parentDir.GetPath(), dirName), 0644)
 }
@@ -140,6 +129,17 @@ func (d *WebDav) Put(ctx context.Context, dstDir model.Obj, s model.FileStreamer
 	})
 	err := d.client.WriteStream(path.Join(dstDir.GetPath(), s.GetName()), reader, 0644, callback)
 	return err
+}
+
+func (d *WebDav) Link(ctx context.Context, file model.Obj, args model.LinkArgs) (*model.Link, error) {
+	url, header, err := d.client.Link(file.GetPath())
+	if err != nil {
+		return nil, err
+	}
+	return &model.Link{
+		URL:    url,
+		Header: header,
+	}, nil
 }
 
 // 用于获取指定文件的路径

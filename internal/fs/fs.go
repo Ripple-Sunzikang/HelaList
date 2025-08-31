@@ -86,3 +86,12 @@ func PutDirectly(ctx context.Context, dstDirPath string, file model.FileStreamer
 	}
 	return err
 }
+
+func Link(ctx context.Context, path string, args model.LinkArgs) (*model.Link, model.Obj, error) {
+	res, file, err := link(ctx, path, args)
+	if err != nil {
+		fmt.Errorf("failed link %s: %+v", path, err)
+		return nil, nil, err
+	}
+	return res, file, nil
+}

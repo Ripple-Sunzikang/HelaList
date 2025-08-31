@@ -5,6 +5,7 @@ import (
 	"HelaList/internal/driver"
 	"HelaList/internal/model"
 	"context"
+	stderrors "errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -551,4 +552,103 @@ func Put(ctx context.Context, storage driver.Driver, dstDirPath string, file mod
 		}
 	}
 	return errors.WithStack(err)
+}
+
+var linkCache = cache.NewMemCache(cache.WithShards[*model.Link](16))
+var linkG = singleflight.Group[*model.Link]{Remember: true}
+var errLinkMFileCache = stderrors.New("ErrLinkMFileCache")
+
+// Link get link, if is an url. should have an expiry time
+func Link(ctx context.Context, storage driver.Driver, path string, args model.LinkArgs) (*model.Link, model.Obj, error) {
+	if storage.Config().CheckStatus && storage.GetStorage().Status != configs.WORK {
+		return nil, nil, errors.Errorf("storage not init: %s", storage.GetStorage().Status)
+	}
+	var (
+		file model.Obj
+		err  error
+	)
+	// use cache directly
+	dir, name := stdpath.Split(stdpath.Join(storage.GetStorage().MountPath, path))
+	if cacheFiles, ok := listCache.Get(strings.TrimSuffix(dir, "/")); ok {
+		for _, f := range cacheFiles {
+			if f.GetName() == name {
+				file = model.UnwrapObj(f)
+				break
+			}
+		}
+	} else {
+		if g, ok := storage.(driver.GetObjInfo); ok {
+			file, err = g.GetObjInfo(ctx, path)
+		} else {
+			file, err = GetUnwrap(ctx, storage, path)
+		}
+	}
+	if file == nil {
+		if err != nil {
+			return nil, nil, errors.WithMessage(err, "failed to get file")
+		}
+		return nil, nil, errors.WithStack(errors.New("ObjectNotFound"))
+	}
+	if file.IsDir() {
+		return nil, nil, errors.WithStack(errors.New("NotFile"))
+	}
+
+	key := stdpath.Join(Key(storage, path), args.Type)
+	if link, ok := linkCache.Get(key); ok {
+		return link, file, nil
+	}
+
+	var forget any
+	var linkM *model.Link
+	fn := func() (*model.Link, error) {
+		link, err := storage.Link(ctx, file, args)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed get link")
+		}
+		if link.MFile != nil && forget != nil {
+			linkM = link
+			return nil, errLinkMFileCache
+		}
+		if link.Expiration != nil {
+			linkCache.Set(key, link, cache.WithEx[*model.Link](*link.Expiration))
+		}
+		link.AddIfCloser(forget)
+		return link, nil
+	}
+
+	if storage.Config().OnlyLinkMFile {
+		link, err := fn()
+		if err != nil {
+			return nil, nil, err
+		}
+		return link, file, err
+	}
+
+	forget = utils.CloseFunc(func() error {
+		if forget != nil {
+			forget = nil
+			linkG.Forget(key)
+		}
+		return nil
+	})
+	link, err, _ := linkG.Do(key, fn)
+	if err == nil && !link.AcquireReference() {
+		link, err, _ = linkG.Do(key, fn)
+		if err == nil {
+			link.AcquireReference()
+		}
+	}
+
+	if err == errLinkMFileCache {
+		if linkM != nil {
+			return linkM, file, nil
+		}
+		forget = nil
+		link, err = fn()
+	}
+
+	if err != nil {
+		return nil, nil, err
+	}
+	return link, file, nil
 }

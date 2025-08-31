@@ -1,6 +1,7 @@
 package common
 
 import (
+	"HelaList/configs"
 	"context"
 	"log"
 
@@ -53,4 +54,9 @@ func ContentWithValue(ctx context.Context, keyAndValue ...any) context.Context {
 		keyAndValue = keyAndValue[2:]
 	}
 	return ctx
+}
+
+func GetApiUrl(ctx context.Context) string {
+	api, _ := ctx.Value(configs.ApiUrlKey).(string)
+	return api
 }

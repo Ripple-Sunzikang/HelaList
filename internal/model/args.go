@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"io"
+	"net/http"
 
 	"github.com/OpenListTeam/OpenList/v4/pkg/http_range"
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
@@ -13,6 +14,13 @@ import (
 type ListArgs struct {
 	ReqPath string
 	Refresh bool
+}
+
+type LinkArgs struct {
+	IP       string
+	Header   http.Header
+	Type     string
+	Redirect bool
 }
 
 type FsOtherArgs struct {
