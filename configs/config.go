@@ -1,5 +1,7 @@
 package configs
 
+import "HelaList/internal/redis"
+
 var Conf *Config
 
 type Database struct {
@@ -13,12 +15,13 @@ type Database struct {
 }
 
 type Config struct {
-	SiteURL        string      `json:"site_url" env:"SITE_URL"`
-	Cdn            string      `json:"cdn" env:"CDN"`
-	JwtSecret      string      `json:"jwt_secret" env:"JWT_SECRET"`
-	TokenExpiresIn int         `json:"token_expires_in" env:"TOKEN_EXPIRES_IN"`
-	Database       Database    `json:"database" envPrefix:"DB_"`
-	Tasks          TasksConfig `json:"tasks" envPrefix:"TASKS_"`
+	SiteURL        string       `json:"site_url" env:"SITE_URL"`
+	Cdn            string       `json:"cdn" env:"CDN"`
+	JwtSecret      string       `json:"jwt_secret" env:"JWT_SECRET"`
+	TokenExpiresIn int          `json:"token_expires_in" env:"TOKEN_EXPIRES_IN"`
+	Database       Database     `json:"database" envPrefix:"DB_"`
+	Redis          redis.Config `json:"redis" envPrefix:"REDIS_"`
+	Tasks          TasksConfig  `json:"tasks" envPrefix:"TASKS_"`
 }
 
 func DefaultConfig(dataDir string) *Config {
@@ -33,6 +36,7 @@ func DefaultConfig(dataDir string) *Config {
 			Name:     "hela",
 			DSN:      "host=localhost user=suzuki password=suzuki dbname=hela port=5432 sslmode=disable TimeZone=Asia/Shanghai",
 		},
+		Redis: *redis.DefaultConfig(),
 	}
 }
 
