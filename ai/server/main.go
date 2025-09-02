@@ -384,7 +384,7 @@ func GetStorageTool(ctx context.Context, req *mcp.CallToolRequest, args GetStora
 func GetAllStoragesTool(ctx context.Context, req *mcp.CallToolRequest, args struct{}) (*mcp.CallToolResult, any, error) {
 	storages := op.GetAllStorages()
 	storagesInfo, _ := json.Marshal(storages)
-	
+
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: string(storagesInfo)},
