@@ -12,6 +12,8 @@
     }
   ],
   "compilerOptions": {
+    "composite": true,
+    "noEmit": true,
     "target": "esnext",
     "module": "esnext",
     "strict": true,
@@ -23,7 +25,5 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "types": ["node"] // 显式包含 Node.js 类型
-  },
-  "include": ["src/**/*", "tests/**/*"],
-  "exclude": ["node_modules"]
+  }
 }
