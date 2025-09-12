@@ -164,6 +164,7 @@ func setContentHeaders(c *gin.Context, file model.Obj, resp *http.Response) {
 func shouldSkipHeader(key string) bool {
 	key = strings.ToLower(key)
 	skipHeaders := []string{
+		"content-disposition", // Let the caller handler control this
 		"connection",
 		"transfer-encoding",
 		"upgrade",
@@ -256,4 +257,53 @@ func getContentType(filename string) string {
 	}
 
 	return "application/octet-stream"
+}
+
+// In internal/server/common/proxy.go
+
+func ProxyDownload(c *gin.Context, link *model.Link, filename string) error {
+	defer func() {
+		if link != nil {
+			link.Close()
+		}
+	}()
+
+	if link.URL == "" {
+		return errors.New("empty download url")
+	}
+
+	req, err := http.NewRequestWithContext(c.Request.Context(), "GET", link.URL, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to create request")
+	}
+
+	// Only copy authentication headers from the driver
+	for key, values := range link.Header {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
+
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return nil
+		},
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "failed to proxy request")
+	}
+	defer resp.Body.Close()
+
+	// Set headers for forced download
+	c.Header("Content-Disposition", "attachment; filename=\""+filename+"\"")
+	c.Header("Content-Type", "application/octet-stream") // A generic content type
+	if resp.ContentLength > 0 {
+		c.Header("Content-Length", strconv.FormatInt(resp.ContentLength, 10))
+	}
+	
+c.Status(resp.StatusCode)
+
+	_, err = io.Copy(c.Writer, resp.Body)
+	return err
 }

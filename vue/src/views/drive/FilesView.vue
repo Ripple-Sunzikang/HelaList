@@ -194,7 +194,7 @@ const openFile = (item: FileItem) => {
   if (item.isDir) {
     openFolder(item);
   } else if (previewableTypes.includes(item.type)) {
-    window.open(`/api/fs/download${item.path}`, '_blank');
+    window.open(`/api/fs/download${item.path}?t=${new Date().getTime()}`, '_blank');
   } else {
     toggleSelection(item);
   }
@@ -206,7 +206,7 @@ const handleCommand = (command: string, item: FileItem, index: number) => {
       openFile(item);
       break;
     case 'download':
-      window.open(`/api/fs/download${item.path}`, '_blank');
+      window.open(`/api/fs/download${item.path}?t=${new Date().getTime()}`, '_blank');
       break;
     case 'rename':
       ElMessageBox.prompt('Please enter a new name', 'Rename', {

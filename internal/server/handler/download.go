@@ -36,38 +36,24 @@ func DownloadHandler(c *gin.Context) {
 		return
 	}
 
-	// 获取存储和驱动
-	storage, _, err := op.GetStorageAndActualPath(reqPath)
-	if err != nil {
-		common.ErrorResponse(c, err, 500)
-		return
-	}
-
 	filename := filepath.Base(rawPath)
 
-	// 判断是否应该使用代理
-	if common.ShouldProxy(storage, filename) {
-		ProxyHandler(c)
-		return
-	}
-
-	// 直接重定向到下载链接
+	// 获取文件信息和下载链接
 	link, _, err := fs.Link(c.Request.Context(), reqPath, model.LinkArgs{
 		IP:     c.ClientIP(),
 		Header: c.Request.Header,
-		Type:   c.Query("type"),
 	})
 	if err != nil {
 		common.ErrorResponse(c, err, 500)
 		return
 	}
 
-	// 设置下载相关的头部
-	c.Header("Content-Disposition", "attachment; filename=\""+filename+"\"")
-	c.Header("Cache-Control", "max-age=0, no-cache, no-store, must-revalidate")
-
-	// 重定向到实际下载链接
-	c.Redirect(302, link.URL)
+	// 使用独立的下载代理函数
+	err = common.ProxyDownload(c, link, filename)
+	if err != nil {
+		common.ErrorResponse(c, err, 500)
+		return
+	}
 }
 
 // PreviewHandler 处理文件预览请求
