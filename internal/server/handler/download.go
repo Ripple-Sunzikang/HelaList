@@ -13,47 +13,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// DownloadHandler 处理文件下载请求
+// DownloadHandler now calls ProxyHandler to unify logic
 func DownloadHandler(c *gin.Context) {
-	// 获取路径参数
-	rawPath := c.Param("path")
-	if rawPath == "" {
-		common.ErrorResponse(c, errors.New("path is required"), 400)
-		return
-	}
-
-	// 获取用户信息
-	user := c.Request.Context().Value(configs.UserKey).(*model.User)
-	if user.IsGuest() && user.Disabled {
-		common.ErrorResponse(c, errors.New("guest user is disabled"), 401)
-		return
-	}
-
-	// 构建完整路径
-	reqPath, err := user.JoinPath(rawPath)
-	if err != nil {
-		common.ErrorResponse(c, err, 403)
-		return
-	}
-
-	filename := filepath.Base(rawPath)
-
-	// 获取文件信息和下载链接
-	link, _, err := fs.Link(c.Request.Context(), reqPath, model.LinkArgs{
-		IP:     c.ClientIP(),
-		Header: c.Request.Header,
-	})
-	if err != nil {
-		common.ErrorResponse(c, err, 500)
-		return
-	}
-
-	// 使用独立的下载代理函数
-	err = common.ProxyDownload(c, link, filename)
-	if err != nil {
-		common.ErrorResponse(c, err, 500)
-		return
-	}
+	// All logic is now in ProxyHandler, which respects `?type=download`
+	ProxyHandler(c)
 }
 
 // PreviewHandler 处理文件预览请求

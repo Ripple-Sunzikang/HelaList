@@ -90,7 +90,7 @@ func Proxy(c *gin.Context, link *model.Link, file model.Obj, proxyRange bool) er
 // 服务内存文件
 func serveFile(c *gin.Context, file model.Obj, mfile io.ReadSeeker) error {
 	c.Header("Content-Type", getContentType(file.GetName()))
-	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", file.GetName()))
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\" %s\"", file.GetName()))
 	c.Header("Cache-Control", "public, max-age=3600")
 
 	http.ServeContent(c.Writer, c.Request, file.GetName(), file.GetModifiedTime(), mfile)
@@ -131,11 +131,11 @@ func copyResponseHeaders(c *gin.Context, resp *http.Response) {
 func setContentHeaders(c *gin.Context, file model.Obj, resp *http.Response) {
 	// 设置文件名
 	if c.GetHeader("Content-Disposition") == "" {
-		if isPreviewable(file.GetName()) {
-			c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", file.GetName()))
-		} else {
-			c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", file.GetName()))
+		dispositionType := "inline"
+		if c.Query("type") == "download" || !isPreviewable(file.GetName()) {
+			dispositionType = "attachment"
 		}
+		c.Header("Content-Disposition", fmt.Sprintf("%s; filename=\" %s\"", dispositionType, file.GetName()))
 	}
 
 	// 设置内容类型

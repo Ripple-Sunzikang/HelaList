@@ -189,12 +189,22 @@ const openFolder = (item: FileItem) => {
   loadList(currentPath.value, false);
 };
 
+const buildFileUrl = (path: string, download = false) => {
+  const url = `/api/fs/download${path}`;
+  const params = new URLSearchParams();
+  params.append('t', new Date().getTime().toString());
+  if (download) {
+    params.append('type', 'download');
+  }
+  return `${url}?${params.toString()}`;
+}
+
 const openFile = (item: FileItem) => {
   const previewableTypes = ['video', 'image', 'pdf', 'document', 'audio'];
   if (item.isDir) {
     openFolder(item);
   } else if (previewableTypes.includes(item.type)) {
-    window.open(`/api/fs/download${item.path}?t=${new Date().getTime()}`, '_blank');
+    window.open(buildFileUrl(item.path, false), '_blank');
   } else {
     toggleSelection(item);
   }
@@ -206,7 +216,7 @@ const handleCommand = (command: string, item: FileItem, index: number) => {
       openFile(item);
       break;
     case 'download':
-      window.open(`/api/fs/download${item.path}?t=${new Date().getTime()}`, '_blank');
+      window.open(buildFileUrl(item.path, true), '_blank');
       break;
     case 'rename':
       ElMessageBox.prompt('Please enter a new name', 'Rename', {
