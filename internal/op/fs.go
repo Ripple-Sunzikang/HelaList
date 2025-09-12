@@ -218,8 +218,8 @@ func List(ctx context.Context, storage driver.Driver, path string, args model.Li
 			return nil, errors.Wrapf(err, "failed to list objs")
 		}
 		for _, f := range files {
-			if s, ok := f.(model.SetPath); ok && f.GetPath() == "" && dir.GetPath() != "" {
-				s.SetPath(stdpath.Join(dir.GetPath(), f.GetName()))
+			if s, ok := f.(model.SetPath); ok {
+				s.SetPath(stdpath.Join(args.ReqPath, f.GetName()))
 			}
 		}
 		model.WrapObjsName(files)

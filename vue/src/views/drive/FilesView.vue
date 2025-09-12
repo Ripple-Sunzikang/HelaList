@@ -35,17 +35,17 @@
         </div>
 
         <!-- Actions Dropdown -->
-  <el-dropdown trigger="click" @command="handleCommandFromDropdown.bind(null, item, index)" class="file-actions">
-          <el-button :icon="MoreFilled" circle link class="more-button" @click.stop />
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="download" :icon="Download" :disabled="item.isDir">Download</el-dropdown-item>
-              <el-dropdown-item command="rename" :icon="EditPen">Rename</el-dropdown-item>
-              <el-dropdown-item command="move" :icon="Rank">Move</el-dropdown-item>
-              <el-dropdown-item command="delete" :icon="Delete" divided>Delete</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+  <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, item, index)" class="file-actions">
+            <el-button :icon="MoreFilled" circle link class="more-button" @click.stop />
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="download" :icon="Download" :disabled="item.isDir">Download</el-dropdown-item>
+                <el-dropdown-item command="rename" :icon="EditPen">Rename</el-dropdown-item>
+                <el-dropdown-item command="move" :icon="Rank">Move</el-dropdown-item>
+                <el-dropdown-item command="delete" :icon="Delete" divided>Delete</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
       </div>
     </div>
 
@@ -175,9 +175,14 @@ const handleCommand = (command: string, item: FileItem, index: number) => {
         confirmButtonText: 'OK',
         cancelButtonText: 'Cancel',
         inputValue: item.name,
-      }).then(({ value }) => {
-        fileItems.value[index].name = value;
-        ElMessage.success('Renamed successfully');
+      }).then(async ({ value }) => {
+        try {
+          await api.fs.rename(item.path, value)
+          fileItems.value[index].name = value;
+          ElMessage.success('Renamed successfully');
+        } catch (err: any) {
+          ElMessage.error(err.message || 'Failed to rename')
+        }
       });
       break;
     case 'move':
@@ -197,10 +202,6 @@ const handleCommand = (command: string, item: FileItem, index: number) => {
 };
 
 const refresh = () => loadList(currentPath.value, true)
-
-const handleCommandFromDropdown = (item: FileItem, index: number, cmd: any) => {
-  handleCommand(cmd as string, item, index)
-}
 
 // upload handled by DriveMain; FilesView listens for 'hela-files-updated' and refreshes
 

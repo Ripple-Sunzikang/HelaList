@@ -51,10 +51,15 @@ async function request<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
 export const api = {
   get: <T = any>(url: string) => request<T>(url, { method: 'GET' }),
   post: <T = any>(url: string, data?: any) => {
-  const isForm = data instanceof FormData
-  const headersRecord: Record<string, string> = {}
-  if (!isForm) headersRecord['Content-Type'] = 'application/json'
-  const body = isForm ? data : JSON.stringify(data)
-  return request<T>(url, { method: 'POST', body, headers: headersRecord })
+    const isForm = data instanceof FormData
+    const headersRecord: Record<string, string> = {}
+    if (!isForm) headersRecord['Content-Type'] = 'application/json'
+    const body = isForm ? data : JSON.stringify(data)
+    return request<T>(url, { method: 'POST', body, headers: headersRecord })
+  },
+  fs: {
+    rename: (path: string, name: string) => {
+      return api.post('/api/fs/rename', { path, name })
+    },
   },
 }
