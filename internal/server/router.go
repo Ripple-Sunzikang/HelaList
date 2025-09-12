@@ -15,6 +15,7 @@ func Init() *gin.Engine {
 	registerStorageRoutes(r)
 	registerMetaRoutes(r)
 	registerFsRoutes(r)
+	registerAIRoutes(r)
 	registerWebdavRoutes(r)
 	return r
 }
@@ -57,6 +58,16 @@ func registerMetaRoutes(r *gin.Engine) {
 		meta.GET("/path/:path", handler.GetMetaByPathHandler)
 		meta.GET("/nearest/:path", handler.GetNearestMetaHandler)
 		meta.GET("", handler.GetMetasHandler)
+	}
+}
+
+func registerAIRoutes(r *gin.Engine) {
+	api := r.Group("/api")
+	ai := api.Group("/ai")
+	ai.Use(middlewares.Auth(false)) // 可选认证
+	{
+		ai.POST("/chat", handler.AIChatHandler)
+		ai.POST("/execute", handler.ExecuteFileOperationHandler)
 	}
 }
 

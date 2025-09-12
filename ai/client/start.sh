@@ -28,7 +28,13 @@ echo "4. 测试文件系统功能"
 echo "5. 交互式模式"
 echo ""
 
-read -p "请选择操作 (1-5): " choice
+# Check if an argument is provided
+if [ -n "$1" ]; then
+    choice=$1
+    echo "已选择操作: $choice"
+else
+    read -p "请选择操作 (1-5): " choice
+fi
 
 case $choice in
     1)

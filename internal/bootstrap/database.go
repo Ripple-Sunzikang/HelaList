@@ -25,7 +25,7 @@ func InitDB() {
 	if err != nil {
 		log.Panicf("Database connection failed: %v", err)
 	}
-	log.Println("Database connected!")
+	// log.Println("Database connected!")  // 注释掉以避免干扰 MCP 协议
 }
 
 func InitRedis() {

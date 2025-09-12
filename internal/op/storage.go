@@ -249,13 +249,13 @@ func UpdateStorage(ctx context.Context, storage model.Storage) error {
 func LoadAllStorages(ctx context.Context) {
 	storages, err := service.GetEnabledStorages()
 	if err != nil {
-		fmt.Printf("[HelaList] Error getting enabled storages on startup: %+v\n", err)
+		// fmt.Printf("[HelaList] Error getting enabled storages on startup: %+v\n", err)  // 注释掉以避免干扰 MCP 协议
 		return
 	}
 
-	fmt.Printf("[HelaList] Found %d storages to load...\n", len(storages))
+	// fmt.Printf("[HelaList] Found %d storages to load...\n", len(storages))  // 注释掉以避免干扰 MCP 协议
 	for _, storage := range storages {
-		fmt.Printf("[HelaList] Loading storage: %s\n", storage.MountPath)
+		// fmt.Printf("[HelaList] Loading storage: %s\n", storage.MountPath)  // 注释掉以避免干扰 MCP 协议
 		// 为每个存储创建一个新的驱动实例
 		driverNew, err := GetDriver(storage.Driver)
 		if err != nil {

@@ -1,6 +1,8 @@
 package main
 
 import (
+	_ "HelaList/drivers/webdav"
+	"HelaList/internal/bootstrap"
 	"HelaList/internal/model"
 	"HelaList/internal/op"
 	"context"
@@ -16,95 +18,95 @@ import (
 
 // 用户相关工具参数
 type LoginParams struct {
-	Username string `json:"username" jsonschema:"required,description=用户名"`
-	Password string `json:"password" jsonschema:"required,description=密码"`
+	Username string `json:"username" jsonschema:"用户名"`
+	Password string `json:"password" jsonschema:"密码"`
 }
 
 type CreateUserParams struct {
-	Username string `json:"username" jsonschema:"required,description=用户名"`
-	Email    string `json:"email" jsonschema:"required,description=邮箱地址"`
-	Password string `json:"password" jsonschema:"required,description=密码"`
-	BasePath string `json:"base_path" jsonschema:"description=用户基础路径"`
-	Identity int    `json:"identity" jsonschema:"description=用户身份,0=管理员,1=普通用户,2=访客"`
+	Username string `json:"username" jsonschema:"用户名"`
+	Email    string `json:"email" jsonschema:"邮箱地址"`
+	Password string `json:"password" jsonschema:"密码"`
+	BasePath string `json:"base_path" jsonschema:"用户基础路径"`
+	Identity int    `json:"identity" jsonschema:"用户身份类型"`
 }
 
 type GetUserParams struct {
-	Username string `json:"username" jsonschema:"required,description=用户名"`
+	Username string `json:"username" jsonschema:"用户名"`
 }
 
 type UpdateUserParams struct {
-	Username string `json:"username" jsonschema:"required,description=用户名"`
-	Email    string `json:"email" jsonschema:"description=新邮箱地址"`
-	Password string `json:"password" jsonschema:"description=新密码"`
-	BasePath string `json:"base_path" jsonschema:"description=新基础路径"`
-	Identity int    `json:"identity" jsonschema:"description=新身份"`
-	Disabled bool   `json:"disabled" jsonschema:"description=是否禁用"`
+	Username string `json:"username" jsonschema:"用户名"`
+	Email    string `json:"email" jsonschema:"新邮箱地址"`
+	Password string `json:"password" jsonschema:"新密码"`
+	BasePath string `json:"base_path" jsonschema:"新基础路径"`
+	Identity int    `json:"identity" jsonschema:"新身份"`
+	Disabled bool   `json:"disabled" jsonschema:"是否禁用"`
 }
 
 type DeleteUserParams struct {
-	Username string `json:"username" jsonschema:"required,description=要删除的用户名"`
+	Username string `json:"username" jsonschema:"要删除的用户名"`
 }
 
 // 存储相关工具参数
 type CreateStorageParams struct {
-	MountPath       string `json:"mount_path" jsonschema:"required,description=挂载路径"`
-	Driver          string `json:"driver" jsonschema:"required,description=驱动类型"`
-	CacheExpiration int    `json:"cache_expiration" jsonschema:"description=缓存过期时间(秒)"`
-	Addition        string `json:"addition" jsonschema:"description=附加配置信息(JSON格式)"`
-	Remark          string `json:"remark" jsonschema:"description=备注信息"`
-	Order           int    `json:"order" jsonschema:"description=排序序号"`
+	MountPath       string `json:"mount_path" jsonschema:"挂载路径"`
+	Driver          string `json:"driver" jsonschema:"驱动类型"`
+	CacheExpiration int    `json:"cache_expiration" jsonschema:"缓存过期时间秒"`
+	Addition        string `json:"addition" jsonschema:"附加配置信息JSON格式"`
+	Remark          string `json:"remark" jsonschema:"备注信息"`
+	Order           int    `json:"order" jsonschema:"排序序号"`
 }
 
 type UpdateStorageParams struct {
-	MountPath       string `json:"mount_path" jsonschema:"required,description=挂载路径"`
-	Driver          string `json:"driver" jsonschema:"description=驱动类型"`
-	CacheExpiration int    `json:"cache_expiration" jsonschema:"description=缓存过期时间(秒)"`
-	Addition        string `json:"addition" jsonschema:"description=附加配置信息(JSON格式)"`
-	Remark          string `json:"remark" jsonschema:"description=备注信息"`
-	Order           int    `json:"order" jsonschema:"description=排序序号"`
-	Disabled        bool   `json:"disabled" jsonschema:"description=是否禁用"`
+	MountPath       string `json:"mount_path" jsonschema:"挂载路径"`
+	Driver          string `json:"driver" jsonschema:"驱动类型"`
+	CacheExpiration int    `json:"cache_expiration" jsonschema:"缓存过期时间秒"`
+	Addition        string `json:"addition" jsonschema:"附加配置信息JSON格式"`
+	Remark          string `json:"remark" jsonschema:"备注信息"`
+	Order           int    `json:"order" jsonschema:"排序序号"`
+	Disabled        bool   `json:"disabled" jsonschema:"是否禁用"`
 }
 
 type GetStorageParams struct {
-	MountPath string `json:"mount_path" jsonschema:"required,description=挂载路径"`
+	MountPath string `json:"mount_path" jsonschema:"挂载路径"`
 }
 
 // 文件系统相关工具参数
 type FsListParams struct {
-	Path     string `json:"path" jsonschema:"required,description=要列出的目录路径"`
-	Username string `json:"username" jsonschema:"description=用户名(用于权限检查)"`
-	Password string `json:"password" jsonschema:"description=目录密码(如果需要)"`
+	Path     string `json:"path" jsonschema:"要列出的目录路径"`
+	Username string `json:"username" jsonschema:"用户名用于权限检查"`
+	Password string `json:"password" jsonschema:"目录密码如果需要"`
 }
 
 type FsMkdirParams struct {
-	Path     string `json:"path" jsonschema:"required,description=要创建的目录路径"`
-	Username string `json:"username" jsonschema:"description=用户名(用于权限检查)"`
+	Path     string `json:"path" jsonschema:"要创建的目录路径"`
+	Username string `json:"username" jsonschema:"用户名用于权限检查"`
 }
 
 type FsRemoveParams struct {
-	Names    []string `json:"names" jsonschema:"required,description=要删除的文件/目录名称列表"`
-	DirPath  string   `json:"dir_path" jsonschema:"required,description=目录路径"`
-	Username string   `json:"username" jsonschema:"description=用户名(用于权限检查)"`
+	Names    []string `json:"names" jsonschema:"要删除的文件/目录名称列表"`
+	DirPath  string   `json:"dir_path" jsonschema:"目录路径"`
+	Username string   `json:"username" jsonschema:"用户名用于权限检查"`
 }
 
 type FsCopyParams struct {
-	SrcDirPath string   `json:"src_dir_path" jsonschema:"required,description=源目录路径"`
-	DstDirPath string   `json:"dst_dir_path" jsonschema:"required,description=目标目录路径"`
-	Names      []string `json:"names" jsonschema:"required,description=要复制的文件/目录名称列表"`
-	Username   string   `json:"username" jsonschema:"description=用户名(用于权限检查)"`
+	SrcDirPath string   `json:"src_dir_path" jsonschema:"源目录路径"`
+	DstDirPath string   `json:"dst_dir_path" jsonschema:"目标目录路径"`
+	Names      []string `json:"names" jsonschema:"要复制的文件/目录名称列表"`
+	Username   string   `json:"username" jsonschema:"用户名用于权限检查"`
 }
 
 type FsMoveParams struct {
-	SrcDirPath string   `json:"src_dir_path" jsonschema:"required,description=源目录路径"`
-	DstDirPath string   `json:"dst_dir_path" jsonschema:"required,description=目标目录路径"`
-	Names      []string `json:"names" jsonschema:"required,description=要移动的文件/目录名称列表"`
-	Username   string   `json:"username" jsonschema:"description=用户名(用于权限检查)"`
+	SrcDirPath string   `json:"src_dir_path" jsonschema:"源目录路径"`
+	DstDirPath string   `json:"dst_dir_path" jsonschema:"目标目录路径"`
+	Names      []string `json:"names" jsonschema:"要移动的文件/目录名称列表"`
+	Username   string   `json:"username" jsonschema:"用户名用于权限检查"`
 }
 
 type FsRenameParams struct {
-	Path     string `json:"path" jsonschema:"required,description=文件/目录路径"`
-	Name     string `json:"name" jsonschema:"required,description=新名称"`
-	Username string `json:"username" jsonschema:"description=用户名(用于权限检查)"`
+	Path     string `json:"path" jsonschema:"文件/目录路径"`
+	Name     string `json:"name" jsonschema:"新名称"`
+	Username string `json:"username" jsonschema:"用户名用于权限检查"`
 }
 
 // MCP 工具处理器实现
@@ -596,6 +598,12 @@ func FsRenameTool(ctx context.Context, req *mcp.CallToolRequest, args FsRenamePa
 }
 
 func main() {
+	// 初始化数据库连接
+	bootstrap.InitDB()
+
+	// 加载存储配置
+	op.LoadAllStorages(context.Background())
+
 	// 创建 MCP 服务器
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "HelaList-MCP-Server",
@@ -679,13 +687,6 @@ func main() {
 		Name:        "fs_rename",
 		Description: "重命名文件或目录",
 	}, FsRenameTool)
-
-	log.Println("HelaList MCP 服务器启动中...")
-	log.Println("可用工具:")
-	log.Println("  用户管理: user_login, user_create, user_get, user_update, user_delete")
-	log.Println("  存储管理: storage_create, storage_update, storage_get, storage_get_all")
-	log.Println("  文件系统: fs_list, fs_mkdir, fs_remove, fs_copy, fs_move, fs_rename")
-	log.Println("服务器通过 stdin/stdout 通信")
 
 	// 在 stdin/stdout 上运行服务器，直到客户端断开连接
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {

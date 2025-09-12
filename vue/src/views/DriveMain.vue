@@ -21,13 +21,34 @@
           <div class="action-buttons" v-if="activeView === 'home'">
             <el-button type="primary" :icon="UploadFilled" @click="showUploadModal = true">Upload</el-button>
             <el-button type="success" :icon="FolderAdd" @click="createNewFolder">New Folder</el-button>
+            <el-button type="info" :icon="ChatDotRound" @click="toggleAIChat" plain>
+              AI 助手
+            </el-button>
           </div>
         </div>
       </el-header>
 
       <!-- Main content area -->
       <el-main class="content-area">
-        <component :is="currentViewComponent" />
+        <div class="main-content-wrapper">
+          <!-- 文件管理主界面 -->
+          <div class="file-management-area" :class="{ 'with-ai-panel': showAIPanel }">
+            <component :is="currentViewComponent" />
+          </div>
+          
+          <!-- AI 聊天面板 -->
+          <div v-if="showAIPanel" class="ai-chat-panel">
+            <div class="ai-panel-header">
+              <h3>AI 助手</h3>
+              <el-button size="small" text @click="toggleAIChat">
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </div>
+            <div class="ai-panel-content">
+              <AIChat />
+            </div>
+          </div>
+        </div>
       </el-main>
     </el-container>
 
@@ -63,13 +84,15 @@ import FilesView from './drive/FilesView.vue';
 import DownloadsView from './drive/DownloadsView.vue';
 import MountsView from './drive/MountsView.vue';
 import SettingsView from './drive/SettingsView.vue';
-import { Expand, Fold, UploadFilled, FolderAdd } from '@element-plus/icons-vue';
+import AIChat from '@/components/AIChat.vue';
+import { Expand, Fold, UploadFilled, FolderAdd, ChatDotRound, Close } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 
 // State
 const activeView = ref('home');
 const sidebarCollapsed = ref(false);
 const showUploadModal = ref(false);
+const showAIPanel = ref(false);
 
 const viewComponents = {
   home: FilesView,
@@ -101,6 +124,10 @@ const changeView = (viewId: string) => {
 
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value;
+};
+
+const toggleAIChat = () => {
+  showAIPanel.value = !showAIPanel.value;
 };
 
 import { ElMessageBox } from 'element-plus'
@@ -227,6 +254,54 @@ const httpUpload = async (options: any) => {
 .content-area {
   padding: 20px;
   overflow-y: auto;
+}
+
+.main-content-wrapper {
+  display: flex;
+  height: 100%;
+  gap: 20px;
+}
+
+.file-management-area {
+  flex: 1;
+  min-width: 0;
+  transition: all 0.3s ease;
+}
+
+.file-management-area.with-ai-panel {
+  max-width: calc(100% - 420px);
+}
+
+.ai-chat-panel {
+  width: 400px;
+  background: #ffffff;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.ai-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #e4e7ed;
+  background: #fafbfc;
+  border-radius: 8px 8px 0 0;
+}
+
+.ai-panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.ai-panel-content {
+  flex: 1;
+  overflow: hidden;
 }
 
 .upload-dragger {
