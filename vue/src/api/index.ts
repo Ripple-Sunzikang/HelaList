@@ -61,5 +61,8 @@ export const api = {
     rename: (path: string, name: string) => {
       return api.post('/api/fs/rename', { path, name })
     },
+    remove: (path: string) => {
+      return api.post('/api/fs/remove', { path })
+    },
   },
 }

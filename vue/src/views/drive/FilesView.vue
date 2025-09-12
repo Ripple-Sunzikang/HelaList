@@ -193,9 +193,14 @@ const handleCommand = (command: string, item: FileItem, index: number) => {
         confirmButtonText: 'Delete',
         cancelButtonText: 'Cancel',
         type: 'warning',
-      }).then(() => {
-        fileItems.value.splice(index, 1);
-        ElMessage.success('File deleted');
+      }).then(async () => {
+        try {
+          await api.fs.remove(item.path)
+          fileItems.value.splice(index, 1);
+          ElMessage.success('File deleted');
+        } catch (err: any) {
+          ElMessage.error(err.message || 'Failed to delete')
+        }
       });
       break;
   }
