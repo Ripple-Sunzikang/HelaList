@@ -12,7 +12,7 @@ type AIConfig struct {
 }
 
 var AI = AIConfig{
-	QwenAPIKey: getEnvOrDefault("QWEN_API_KEY", "sk-5f5e544a1f464c47bf99c3e8b63424be"),
+	QwenAPIKey: os.Getenv("QWEN_API_KEY"),
 	QwenModel:  getEnvOrDefault("QWEN_MODEL", "qwen-vl-plus"),
 	QwenAPIURL: getEnvOrDefault("QWEN_API_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
 }

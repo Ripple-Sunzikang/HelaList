@@ -238,6 +238,35 @@ const handleActionResult = (actionType: string, result: any) => {
       break
       
     case 'list_files':
+      // 显示文件列表内容
+      console.log('处理list_files结果:', result)
+      if (result && result.result) {
+        console.log('result.result:', result.result)
+        const files = result.result
+        if (Array.isArray(files) && files.length > 0) {
+          let fileListText = '📁 **目录内容：**\n\n'
+          files.forEach((file: any, index: number) => {
+            console.log(`文件 ${index}:`, file)
+            const icon = file.is_dir ? '📁' : '📄'
+            const size = file.is_dir ? '' : ` (${formatFileSize(file.size || 0)})`
+            fileListText += `${icon} ${file.name}${size}\n`
+          })
+          addMessage('ai', fileListText)
+          console.log('添加文件列表消息:', fileListText)
+        } else {
+          console.log('文件列表为空或不是数组:', files)
+          addMessage('ai', '📁 目录为空，没有找到任何文件或文件夹。')
+        }
+      } else {
+        console.log('result 或 result.result 为空:', result)
+        addMessage('ai', '❌ 无法获取目录内容。')
+      }
+      // 同时刷新文件列表界面
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('hela-files-updated'))
+      }, 500)
+      break
+      
     case 'create_folder':
     case 'delete_item':
     case 'rename_item':
@@ -259,6 +288,15 @@ const handleActionResult = (actionType: string, result: any) => {
 const useSuggestion = (suggestion: string) => {
   currentInput.value = suggestion
   sendMessage()
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 // 格式化消息

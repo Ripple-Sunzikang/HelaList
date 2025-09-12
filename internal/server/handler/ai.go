@@ -33,9 +33,11 @@ type AIAction struct {
 
 // 千问 API 结构 (OpenAI兼容格式)
 type QwenRequest struct {
-	Model    string        `json:"model"`
-	Messages []QwenMessage `json:"messages"`
-	Stream   bool          `json:"stream"`
+	Model       string        `json:"model"`
+	Messages    []QwenMessage `json:"messages"`
+	Stream      bool          `json:"stream"`
+	Temperature float64       `json:"temperature,omitempty"`
+	MaxTokens   int           `json:"max_tokens,omitempty"`
 }
 
 type QwenMessage struct {
@@ -109,11 +111,12 @@ func processAIRequest(message string) (string, []AIAction, error) {
 7. preview_image - 预览图片文件（支持jpg、png、gif、webp、svg等格式）
 8. analyze_image - 分析图片内容（描述图片中的内容、识别文字、分析细节等）
 
-重要：当用户要求执行文件操作或图片分析时，你必须：
-1. 首先用友好的语言回复说明你将要执行的操作
-2. 然后在回复的最后一行添加特殊的操作标记
+重要规则：
+1. 当用户只是问候（如"你好"、"谢谢"、"再见"等）或询问功能时，只需要友好回复，不要添加任何操作标记
+2. 只有当用户明确要求执行具体文件操作或图片分析时，才添加操作标记
+3. 所有路径必须是真实存在的文件系统路径，不要使用模糊的描述如"当前目录"、"这个文件夹"等
 
-操作标记的格式必须严格遵循：
+当需要执行操作时，操作标记的格式必须严格遵循：
 [OPERATION:操作类型:参数1=值1,参数2=值2]
 
 具体操作格式：
@@ -126,9 +129,10 @@ func processAIRequest(message string) (string, []AIAction, error) {
 - 预览图片: [OPERATION:preview_image:path=图片文件路径]
 - 分析图片: [OPERATION:analyze_image:path=图片文件路径]
 
-注意：当用户要求"解读图片内容"、"分析图片"、"看看这张图片"、"图片里有什么"等时，应该使用analyze_image操作。
-
 示例回复：
+用户："你好"
+你的回复："你好！我是HelaList AI助手。我可以帮你管理文件、创建文件夹、分析图片等。请告诉我你需要什么帮助！"
+
 用户："列出根目录"
 你的回复："好的，我来为您列出根目录的内容。
 [OPERATION:list_files:path=/]"
@@ -137,7 +141,11 @@ func processAIRequest(message string) (string, []AIAction, error) {
 你的回复："我将为您创建一个名为documents的文件夹。
 [OPERATION:create_folder:path=/documents]"
 
-请用中文回复，并且必须包含操作标记。`
+用户："分析这张图片的内容"（需要明确指定图片文件名）
+你的回复："好的，我将为您分析图片内容。
+[OPERATION:analyze_image:path=具体的图片文件名.jpg]"
+
+请用中文回复。只有明确的操作请求才需要添加操作标记。`
 
 	// 调用千问 API
 	apiKey := configs.AI.QwenAPIKey
@@ -151,7 +159,9 @@ func processAIRequest(message string) (string, []AIAction, error) {
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: message},
 		},
-		Stream: false,
+		Stream:      false,
+		Temperature: 0.1,  // 降低温度，让回复更加客观稳定
+		MaxTokens:   1000, // 限制回复长度
 	}
 
 	jsonData, err := json.Marshal(qwenReq)
@@ -304,7 +314,28 @@ func executeOperation(operation string, params map[string]interface{}) (interfac
 		if !ok {
 			return nil, fmt.Errorf("missing or invalid path parameter")
 		}
-		return fs.List(ctx, path, &fs.ListArgs{})
+		fmt.Printf("正在列出目录: %s\n", path)
+		result, err := fs.List(ctx, path, &fs.ListArgs{})
+		if err != nil {
+			fmt.Printf("列出目录失败: %v\n", err)
+			return nil, err
+		}
+		fmt.Printf("列出目录成功，返回 %d 个项目\n", len(result))
+
+		// 将 model.Obj 转换为简单的 JSON 结构
+		var files []map[string]interface{}
+		for i, item := range result {
+			fmt.Printf("  [%d] %s (是否目录: %v, 大小: %d)\n", i, item.GetName(), item.IsDir(), item.GetSize())
+			files = append(files, map[string]interface{}{
+				"name":          item.GetName(),
+				"is_dir":        item.IsDir(),
+				"size":          item.GetSize(),
+				"modified_time": item.GetModifiedTime(),
+			})
+		}
+
+		fmt.Printf("转换后的文件列表长度: %d\n", len(files))
+		return files, nil
 
 	case "create_folder":
 		path, ok := params["path"].(string)
@@ -464,18 +495,29 @@ func analyzeImageWithQwen(imagePath string) (string, error) {
 		return "", fmt.Errorf("failed to read image data: %v", err)
 	}
 
+	// 检查图片大小，如果太大则跳过分析
+	if len(data) > 10*1024*1024 { // 10MB限制
+		return "抱歉，这张图片太大了（超过10MB），无法进行分析。请尝试压缩图片后再试。", nil
+	}
+
 	// 检测MIME类型
 	mimeType := getImageMimeType(imagePath)
 
 	// 转换为base64
 	base64Data := base64.StdEncoding.EncodeToString(data)
+
+	// 检查base64后的大小
+	if len(base64Data) > 15*1024*1024 { // 15MB base64限制
+		return "抱歉，这张图片编码后太大，无法进行分析。请尝试使用较小的图片。", nil
+	}
+
 	dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
 
 	// 构建多模态消息
 	content := []map[string]interface{}{
 		{
 			"type": "text",
-			"text": "请详细描述这张图片的内容，包括图片中的主要元素、颜色、构图、任何文字内容等。如果是截图或包含界面元素，请说明界面的功能和布局。",
+			"text": "请客观地描述这张图片的视觉内容，包括：画面构图、色彩搭配、主要物体或人物、背景环境、文字信息等。请保持描述的客观性和准确性。",
 		},
 		{
 			"type": "image_url",
@@ -490,7 +532,9 @@ func analyzeImageWithQwen(imagePath string) (string, error) {
 		Messages: []QwenMessage{
 			{Role: "user", Content: content},
 		},
-		Stream: false,
+		Stream:      false,
+		Temperature: 0.1,  // 降低温度，让回复更加客观稳定
+		MaxTokens:   2000, // 限制回复长度
 	}
 
 	jsonData, err := json.Marshal(qwenReq)
