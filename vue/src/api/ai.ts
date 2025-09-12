@@ -1,103 +1,57 @@
-import type { ApiResult } from './index'
-
-export interface ChatMessage {
-  type: 'user' | 'ai'
-  content: string
-  timestamp: Date
-  action?: {
-    type: string
-    params: any
-    result?: any
-  }
-}
-
+// AI API 接口
 export interface AIResponse {
-  reply: string
-  actions?: {
-    type: string
-    params: any
-  }[]
-  error?: string
+  code: number
+  message: string
+  data: {
+    reply: string
+    actions?: Array<{
+      type: string
+      params: any
+    }>
+  }
 }
 
-async function request<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  }
+export interface AIExecuteResponse {
+  code: number
+  message: string
+  data: any
+}
 
-  // 合并 headers
-  if (init && init.headers) {
-    Object.assign(headers, init.headers as Record<string, string>)
-  }
-
-  const token = localStorage.getItem('token') || ''
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
-  const resp = await fetch(input, {
-    ...init,
-    headers,
+// AI 聊天API
+export const chatWithAI = async (message: string): Promise<AIResponse> => {
+  const response = await fetch('/api/ai/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+    },
+    body: JSON.stringify({ message })
   })
 
-  const contentType = resp.headers.get('content-type') || ''
-  if (!resp.ok) {
-    const text = await resp.text()
-    throw new Error(`HTTP ${resp.status}: ${text}`)
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
   }
 
-  if (contentType.includes('application/json')) {
-    const body = (await resp.json()) as ApiResult<any>
-    if (body.code && body.code !== 200) {
-      throw new Error(body.message || 'api error')
-    }
-    return body.data as T
-  }
-
-  // 非JSON返回，直接返回文本
-  const text = await resp.text()
-  return text as unknown as T
+  return await response.json()
 }
 
-export const aiApi = {
-  // AI 聊天接口
-  async chat(message: string, history: ChatMessage[]): Promise<AIResponse> {
-    try {
-      const response = await request<AIResponse>('/api/ai/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          message,
-          history: history.slice(-10) // 只保留最近10条消息作为上下文
-        })
-      })
-      
-      // 检查是否有错误
-      if (response.error) {
-        throw new Error(response.error)
-      }
-      
-      return response
-    } catch (error) {
-      console.error('AI 聊天请求失败:', error)
-      throw error
-    }
-  },
+// 执行AI操作
+export const executeAIAction = async (operation: string, params: any): Promise<AIExecuteResponse> => {
+  const response = await fetch('/api/ai/execute', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+    },
+    body: JSON.stringify({
+      operation,
+      params
+    })
+  })
 
-  // 执行文件系统操作
-  async executeFileOperation(operation: string, params: any): Promise<any> {
-    try {
-      const response = await request<any>('/api/ai/execute', {
-        method: 'POST',
-        body: JSON.stringify({
-          operation,
-          params
-        })
-      })
-      return response
-    } catch (error) {
-      console.error('执行文件操作失败:', error)
-      throw error
-    }
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
   }
+
+  return await response.json()
 }

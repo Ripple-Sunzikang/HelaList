@@ -5,6 +5,7 @@ import (
 	"HelaList/internal/fs"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,37 +31,36 @@ type AIAction struct {
 	Params map[string]interface{} `json:"params"`
 }
 
-// DeepSeek API 结构
-type DeepSeekRequest struct {
-	Model    string    `json:"model"`
-	Messages []Message `json:"messages"`
-	Stream   bool      `json:"stream"`
+// 千问 API 结构 (OpenAI兼容格式)
+type QwenRequest struct {
+	Model    string        `json:"model"`
+	Messages []QwenMessage `json:"messages"`
+	Stream   bool          `json:"stream"`
 }
 
-type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+type QwenMessage struct {
+	Role    string      `json:"role"`
+	Content interface{} `json:"content"` // 可以是字符串或数组（多模态）
 }
 
-type DeepSeekResponse struct {
-	ID      string   `json:"id"`
-	Object  string   `json:"object"`
-	Created int64    `json:"created"`
-	Model   string   `json:"model"`
-	Choices []Choice `json:"choices"`
-	Usage   Usage    `json:"usage"`
-}
-
-type Choice struct {
-	Index        int     `json:"index"`
-	Message      Message `json:"message"`
-	FinishReason string  `json:"finish_reason"`
-}
-
-type Usage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
+type QwenResponse struct {
+	ID      string `json:"id"`
+	Object  string `json:"object"`
+	Created int64  `json:"created"`
+	Model   string `json:"model"`
+	Choices []struct {
+		Index   int `json:"index"`
+		Message struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
+	} `json:"choices"`
+	Usage struct {
+		PromptTokens     int `json:"prompt_tokens"`
+		CompletionTokens int `json:"completion_tokens"`
+		TotalTokens      int `json:"total_tokens"`
+	} `json:"usage"`
 }
 
 func AIChatHandler(c *gin.Context) {
@@ -106,8 +106,10 @@ func processAIRequest(message string) (string, []AIAction, error) {
 4. rename_item - 重命名文件/文件夹
 5. copy_item - 复制文件/文件夹
 6. move_item - 移动文件/文件夹
+7. preview_image - 预览图片文件（支持jpg、png、gif、webp、svg等格式）
+8. analyze_image - 分析图片内容（描述图片中的内容、识别文字、分析细节等）
 
-重要：当用户要求执行文件操作时，你必须：
+重要：当用户要求执行文件操作或图片分析时，你必须：
 1. 首先用友好的语言回复说明你将要执行的操作
 2. 然后在回复的最后一行添加特殊的操作标记
 
@@ -121,6 +123,10 @@ func processAIRequest(message string) (string, []AIAction, error) {
 - 重命名: [OPERATION:rename_item:oldPath=原路径,newName=新名称]
 - 复制: [OPERATION:copy_item:srcPath=源路径,dstPath=目标路径]
 - 移动: [OPERATION:move_item:srcPath=源路径,dstPath=目标路径]
+- 预览图片: [OPERATION:preview_image:path=图片文件路径]
+- 分析图片: [OPERATION:analyze_image:path=图片文件路径]
+
+注意：当用户要求"解读图片内容"、"分析图片"、"看看这张图片"、"图片里有什么"等时，应该使用analyze_image操作。
 
 示例回复：
 用户："列出根目录"
@@ -133,27 +139,27 @@ func processAIRequest(message string) (string, []AIAction, error) {
 
 请用中文回复，并且必须包含操作标记。`
 
-	// 调用DeepSeek API
-	apiKey := configs.AI.DeepSeekAPIKey
+	// 调用千问 API
+	apiKey := configs.AI.QwenAPIKey
 	if apiKey == "" {
-		return "", nil, fmt.Errorf("DEEPSEEK_API_KEY environment variable is not set")
+		return "", nil, fmt.Errorf("QWEN_API_KEY environment variable is not set")
 	}
 
-	deepseekReq := DeepSeekRequest{
-		Model: configs.AI.DeepSeekModel,
-		Messages: []Message{
+	qwenReq := QwenRequest{
+		Model: configs.AI.QwenModel,
+		Messages: []QwenMessage{
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: message},
 		},
 		Stream: false,
 	}
 
-	jsonData, err := json.Marshal(deepseekReq)
+	jsonData, err := json.Marshal(qwenReq)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to marshal request: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", configs.AI.DeepSeekAPIURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", configs.AI.QwenAPIURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -164,8 +170,8 @@ func processAIRequest(message string) (string, []AIAction, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("DeepSeek API call error: %v\n", err)
-		return "", nil, fmt.Errorf("failed to call DeepSeek API: %v", err)
+		fmt.Printf("千问 API call error: %v\n", err)
+		return "", nil, fmt.Errorf("failed to call 千问 API: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -176,25 +182,25 @@ func processAIRequest(message string) (string, []AIAction, error) {
 		return "", nil, fmt.Errorf("failed to read response: %v", err)
 	}
 
-	fmt.Printf("DeepSeek API response status: %d\n", resp.StatusCode)
-	fmt.Printf("DeepSeek API response body: %s\n", string(body))
+	fmt.Printf("千问 API response status: %d\n", resp.StatusCode)
+	fmt.Printf("千问 API response body: %s\n", string(body))
 
 	if resp.StatusCode != http.StatusOK {
-		return "", nil, fmt.Errorf("DeepSeek API returned status %d: %s", resp.StatusCode, string(body))
+		return "", nil, fmt.Errorf("千问 API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	// 解析响应
-	var deepseekResp DeepSeekResponse
-	if err := json.Unmarshal(body, &deepseekResp); err != nil {
+	var qwenResp QwenResponse
+	if err := json.Unmarshal(body, &qwenResp); err != nil {
 		fmt.Printf("Failed to decode response: %v\n", err)
 		return "", nil, fmt.Errorf("failed to decode response: %v", err)
 	}
 
-	if len(deepseekResp.Choices) == 0 {
-		return "", nil, fmt.Errorf("no response from DeepSeek API")
+	if len(qwenResp.Choices) == 0 {
+		return "", nil, fmt.Errorf("no response from 千问 API")
 	}
 
-	aiReply := deepseekResp.Choices[0].Message.Content
+	aiReply := qwenResp.Choices[0].Message.Content
 
 	// 解析AI回复中的操作指令
 	reply, actions := parseAIResponse(aiReply)
@@ -338,7 +344,197 @@ func executeOperation(operation string, params map[string]interface{}) (interfac
 		}
 		return nil, fs.Move(ctx, srcPath, dstPath)
 
+	case "preview_image":
+		path, ok := params["path"].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing or invalid path parameter")
+		}
+
+		// 检查文件是否是图片类型
+		if !isImageFile(path) {
+			return nil, fmt.Errorf("file %s is not an image type", path)
+		}
+
+		// 构建预览URL
+		previewURL := fmt.Sprintf("/api/fs/preview%s", path)
+		return gin.H{
+			"preview_url": previewURL,
+			"file_path":   path,
+			"type":        "image",
+		}, nil
+
+	case "analyze_image":
+		path, ok := params["path"].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing or invalid path parameter")
+		}
+
+		// 检查文件是否是图片类型
+		if !isImageFile(path) {
+			return nil, fmt.Errorf("file %s is not an image type", path)
+		}
+
+		// 调用千问API分析图片内容
+		analysis, err := analyzeImageWithQwen(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to analyze image: %v", err)
+		}
+
+		return gin.H{
+			"analysis":  analysis,
+			"file_path": path,
+			"type":      "image_analysis",
+		}, nil
+
 	default:
 		return nil, fmt.Errorf("unsupported operation: %s", operation)
 	}
+}
+
+// 检查文件是否是图片类型
+func isImageFile(filename string) bool {
+	imageTypes := []string{"jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico"}
+	return isFileTypeIn(filename, imageTypes)
+}
+
+// 检查文件扩展名是否在指定的类型列表中
+func isFileTypeIn(filename string, types []string) bool {
+	ext := getFileExtension(filename)
+	for _, t := range types {
+		if strings.EqualFold(ext, t) {
+			return true
+		}
+	}
+	return false
+}
+
+// 获取文件扩展名
+func getFileExtension(filename string) string {
+	if idx := strings.LastIndex(filename, "."); idx != -1 {
+		return strings.ToLower(filename[idx+1:])
+	}
+	return ""
+}
+
+// 获取图片MIME类型
+func getImageMimeType(filename string) string {
+	ext := getFileExtension(filename)
+	mimeTypes := map[string]string{
+		"jpg":  "image/jpeg",
+		"jpeg": "image/jpeg",
+		"png":  "image/png",
+		"gif":  "image/gif",
+		"webp": "image/webp",
+		"svg":  "image/svg+xml",
+		"ico":  "image/x-icon",
+		"bmp":  "image/bmp",
+	}
+
+	if mimeType, exists := mimeTypes[ext]; exists {
+		return mimeType
+	}
+	return "image/jpeg" // 默认
+}
+
+// 使用千问API分析图片内容
+func analyzeImageWithQwen(imagePath string) (string, error) {
+	// 确保路径以/开头
+	if !strings.HasPrefix(imagePath, "/") {
+		imagePath = "/" + imagePath
+	}
+
+	// 通过内部HTTP请求获取图片数据
+	previewURL := fmt.Sprintf("http://localhost:8080/api/fs/preview%s", imagePath)
+	fmt.Printf("正在获取图片: %s\n", previewURL)
+
+	// 创建HTTP请求获取图片数据
+	resp, err := http.Get(previewURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch image: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to fetch image, status: %d", resp.StatusCode)
+	}
+
+	// 读取图片数据
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image data: %v", err)
+	}
+
+	// 检测MIME类型
+	mimeType := getImageMimeType(imagePath)
+
+	// 转换为base64
+	base64Data := base64.StdEncoding.EncodeToString(data)
+	dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
+
+	// 构建多模态消息
+	content := []map[string]interface{}{
+		{
+			"type": "text",
+			"text": "请详细描述这张图片的内容，包括图片中的主要元素、颜色、构图、任何文字内容等。如果是截图或包含界面元素，请说明界面的功能和布局。",
+		},
+		{
+			"type": "image_url",
+			"image_url": map[string]string{
+				"url": dataURL,
+			},
+		},
+	}
+
+	qwenReq := QwenRequest{
+		Model: configs.AI.QwenModel,
+		Messages: []QwenMessage{
+			{Role: "user", Content: content},
+		},
+		Stream: false,
+	}
+
+	jsonData, err := json.Marshal(qwenReq)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", configs.AI.QwenAPIURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+configs.AI.QwenAPIKey)
+
+	client := &http.Client{}
+	apiResp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to call 千问 API: %v", err)
+	}
+	defer apiResp.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(apiResp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %v", err)
+	}
+
+	fmt.Printf("千问图片分析 API response status: %d\n", apiResp.StatusCode)
+	fmt.Printf("千问图片分析 API response body: %s\n", string(body))
+
+	if apiResp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("千问 API returned status %d: %s", apiResp.StatusCode, string(body))
+	}
+
+	// 解析响应
+	var qwenResp QwenResponse
+	if err := json.Unmarshal(body, &qwenResp); err != nil {
+		return "", fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	if len(qwenResp.Choices) == 0 {
+		return "", fmt.Errorf("no response from 千问 API")
+	}
+
+	return qwenResp.Choices[0].Message.Content, nil
 }

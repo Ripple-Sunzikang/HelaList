@@ -6,15 +6,15 @@ import (
 
 // AI相关配置
 type AIConfig struct {
-	DeepSeekAPIKey string
-	DeepSeekModel  string
-	DeepSeekAPIURL string
+	QwenAPIKey string
+	QwenModel  string
+	QwenAPIURL string
 }
 
 var AI = AIConfig{
-	DeepSeekAPIKey: getEnvOrDefault("DEEPSEEK_API_KEY", "sk-fcccf8df73c54f9f9f657fb2abdcd202"),
-	DeepSeekModel:  getEnvOrDefault("DEEPSEEK_MODEL", "deepseek-chat"),
-	DeepSeekAPIURL: getEnvOrDefault("DEEPSEEK_API_URL", "https://api.deepseek.com/chat/completions"),
+	QwenAPIKey: getEnvOrDefault("QWEN_API_KEY", "sk-5f5e544a1f464c47bf99c3e8b63424be"),
+	QwenModel:  getEnvOrDefault("QWEN_MODEL", "qwen-vl-plus"),
+	QwenAPIURL: getEnvOrDefault("QWEN_API_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
 }
 
 func getEnvOrDefault(key, defaultValue string) string {
