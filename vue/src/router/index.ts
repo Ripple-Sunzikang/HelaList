@@ -39,7 +39,7 @@ const router = createRouter({
       component: DriveMain,
       meta: {
         title: '网盘主页',
-        //requiresAuth: true // 需要登录才能访问
+  requiresAuth: true // 需要登录才能访问
       }
     }
   ],
@@ -56,17 +56,9 @@ router.beforeEach((to, from, next) => {
     document.title = `${to.meta.title}`;
   }
 
-  // 验证登录状态
-  const isAuthenticated = localStorage.getItem('token') !== null; // 假设使用localStorage存储token
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    // 需要登录但未登录时重定向到登录页
-    next('/login');
-  } else if ((to.path === '/login' || to.path === '/register') && isAuthenticated) {
-    // 已登录状态下访问登录/注册页重定向到网盘主页
-    next('/drive');
-  } else {
-    next();
-  }
+  // 开发调试时取消鉴权强制跳转，直接继续路由。
+  // 如果需要恢复鉴权，请把下面这行替换为原有的鉴权逻辑。
+  next();
 });
 
 export default router

@@ -60,6 +60,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useBackgroundSlider } from '../composables/useBackgroundSlider'
+import { api } from '@/api'
 
 // Background slider
 const { currentImageIndex, backgroundImages } = useBackgroundSlider(6000)
@@ -81,11 +82,24 @@ const handleLogin = async () => {
   if (!loginFormRef.value) return
   await loginFormRef.value.validate((valid) => {
     if (valid) {
-      // TODO: Add actual login API call logic here
-      console.log('Login form submitted:', loginForm)
-      ElMessage.success('Login successful! Redirecting...')
-      // Example redirect:
-      // router.push('/drive')
+      ;(async () => {
+        try {
+          const data = await api.post('/api/user/login', {
+            username: loginForm.username,
+            password: loginForm.password,
+          })
+          // 后端返回 { token, user }
+          if (data && data.token) {
+            localStorage.setItem('token', data.token)
+            ElMessage.success('Login successful! Redirecting...')
+            router.push('/home')
+          } else {
+            ElMessage.error('登录失败：未返回 token')
+          }
+        } catch (err: any) {
+          ElMessage.error(err.message || '登录失败')
+        }
+      })()
     } else {
       ElMessage.error('Please check the form for errors.')
     }

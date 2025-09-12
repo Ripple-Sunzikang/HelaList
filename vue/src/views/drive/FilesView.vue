@@ -2,17 +2,17 @@
   <div class="files-view">
     <!-- Breadcrumb -->
     <el-breadcrumb :separator-icon="ArrowRight">
-      <el-breadcrumb-item :to="{ path: '/' }">Root</el-breadcrumb-item>
-      <!-- Dynamic breadcrumbs here -->
+      <el-breadcrumb-item @click.native.prevent="() => { currentPath = ''; loadList('', true) }">Root</el-breadcrumb-item>
+      <el-breadcrumb-item v-for="(seg, idx) in breadcrumbSegments" :key="idx">{{ seg }}</el-breadcrumb-item>
     </el-breadcrumb>
 
     <!-- File Grid -->
     <div v-if="fileItems.length > 0" class="file-grid">
       <div
         v-for="(item, index) in fileItems"
-        :key="item.name"
+        :key="item.id"
         class="file-block"
-        @click="toggleSelection(item)"
+        @click="item.isDir ? openFolder(item) : toggleSelection(item)"
         :class="{ selected: isSelected(item) }"
       >
         <!-- Selection Checkbox -->
@@ -35,7 +35,7 @@
           <el-button :icon="MoreFilled" circle link class="more-button" @click.stop />
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="download" :icon="Download" :disabled="item.type === 'folder'">Download</el-dropdown-item>
+              <el-dropdown-item command="download" :icon="Download" :disabled="item.isDir">Download</el-dropdown-item>
               <el-dropdown-item command="rename" :icon="EditPen">Rename</el-dropdown-item>
               <el-dropdown-item command="move" :icon="Rank">Move</el-dropdown-item>
               <el-dropdown-item command="delete" :icon="Delete" divided>Delete</el-dropdown-item>
@@ -52,32 +52,73 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
   ArrowRight, Download, Delete, Folder, Document, Picture, VideoPlay, Headset, MoreFilled, EditPen, Rank 
 } from '@element-plus/icons-vue';
+import { api } from '@/api'
 
 // Types
 interface FileItem {
+  id: string;
   name: string;
   type: string;
   modified: number;
   size: number;
+  path: string;
+  isDir: boolean;
 }
 
 // Refs
 const loading = ref(false);
-const fileItems = ref<FileItem[]>([
-  { name: 'Work Documents', type: 'folder', modified: new Date('2023-06-15').getTime(), size: 0 },
-  { name: 'project-plan.docx', type: 'doc', modified: new Date('2023-06-20').getTime(), size: 2097152 },
-  { name: 'financials.xlsx', type: 'xls', modified: new Date('2023-06-22').getTime(), size: 3145728 },
-  { name: 'product-demo.pptx', type: 'ppt', modified: new Date('2023-06-25').getTime(), size: 10485760 },
-  { name: 'meeting-notes.pdf', type: 'pdf', modified: new Date('2023-06-28').getTime(), size: 1572864 },
-  { name: 'design.png', type: 'image', modified: new Date('2023-07-01').getTime(), size: 4194304 },
-  { name: 'promo.mp4', type: 'video', modified: new Date('2023-07-05').getTime(), size: 52428800 },
-]);
+const fileItems = ref<FileItem[]>([]);
 const selectedItems = ref<FileItem[]>([]);
+const currentPath = ref('') // '' 表示 root
+
+// computed breadcrumb segments
+const breadcrumbSegments = computed(() => {
+  if (!currentPath.value) return []
+  return currentPath.value.split('/').filter(Boolean)
+})
+
+// helper: build api url for a given path
+function buildListUrl(path: string, refresh = false) {
+  // backend route: /api/fs/list/*path  where *path may be omitted or like /a/b
+  const q = refresh ? '?refresh=true' : ''
+  if (!path || path === '' || path === '/') {
+    return `/api/fs/list${q}`
+  }
+  const normalized = path.startsWith('/') ? path : `/${path}`
+  return `/api/fs/list${normalized}${q}`
+}
+
+async function loadList(path = '', refresh = false) {
+  loading.value = true
+  try {
+    const url = buildListUrl(path, refresh)
+    const data = await api.get<any>(url)
+    // data expected to be { content: ObjResp[], total: number, write: boolean }
+    const content = data?.content || []
+    fileItems.value = content.map((it: any) => ({
+      id: it.id,
+      name: it.name,
+      type: it.is_dir ? 'folder' : 'file',
+      modified: it.modified ? new Date(it.modified).getTime() : 0,
+      size: it.size || 0,
+      path: it.path || '',
+      isDir: !!it.is_dir,
+    }))
+  } catch (err: any) {
+    ElMessage.error(err.message || 'Failed to load files')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadList(currentPath.value, true)
+})
 
 // Methods
 const getFileIcon = (type: string) => {
@@ -101,6 +142,13 @@ const toggleSelection = (item: FileItem) => {
     selectedItems.value.push(item);
   }
 };
+
+const openFolder = (item: FileItem) => {
+  if (!item.isDir) return
+  // set current path to item's path and reload
+  currentPath.value = item.path || `/${item.name}`
+  loadList(currentPath.value, false)
+}
 
 const handleCommand = (command: string, item: FileItem, index: number) => {
   switch (command) {

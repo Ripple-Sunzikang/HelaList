@@ -72,6 +72,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { User, Lock, Message } from '@element-plus/icons-vue'
 import { useBackgroundSlider } from '../composables/useBackgroundSlider'
+import { api } from '@/api'
 
 // Background slider
 const { currentImageIndex, backgroundImages } = useBackgroundSlider(6000)
@@ -111,10 +112,19 @@ const handleRegister = async () => {
   if (!registerFormRef.value) return
   await registerFormRef.value.validate((valid) => {
     if (valid) {
-      // TODO: Add actual registration API call logic here
-      console.log('Register form submitted:', registerForm)
-      ElMessage.success('Registration successful! Redirecting to login...')
-      router.push('/login')
+      ;(async () => {
+        try {
+          await api.post('/api/user/create', {
+            username: registerForm.username,
+            password: registerForm.password,
+            email: registerForm.email,
+          })
+          ElMessage.success('Registration successful! Redirecting to login...')
+          router.push('/login')
+        } catch (err: any) {
+          ElMessage.error(err.message || 'Registration failed')
+        }
+      })()
     } else {
       ElMessage.error('Please check the form for errors.')
     }
