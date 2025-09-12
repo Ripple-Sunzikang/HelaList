@@ -103,10 +103,32 @@ const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value;
 };
 
-const createNewFolder = () => {
-  // This logic will be moved into FilesView eventually
-  ElMessage.info('Create new folder clicked');
-};
+import { ElMessageBox } from 'element-plus'
+import { api } from '@/api'
+
+const createNewFolder = async () => {
+  try {
+    const result = await ElMessageBox.prompt('Folder name', 'Create New Folder', {
+      confirmButtonText: 'Create',
+      cancelButtonText: 'Cancel',
+      inputPattern: /\S+/, // non-empty
+      inputErrorMessage: 'Folder name is required',
+    })
+    const folderName = (result as any).value
+    if (!folderName) return
+    const driveStore = useDriveStore()
+    const base = driveStore.currentPath || '/'
+    // build path: if base is root '/', join as '/name', else '/base/name'
+    const target = base === '/' || base === '' ? `/${folderName}` : `${base.replace(/\/$/, '')}/${folderName}`
+    await api.post('/api/fs/mkdir', { path: target })
+    ElMessage.success('Folder created')
+    // notify FilesView to refresh
+    try { window.dispatchEvent(new CustomEvent('hela-files-updated')) } catch (e) {}
+  } catch (err: any) {
+    if (err === 'cancel' || err === undefined) return
+    ElMessage.error(err.message || 'Create folder failed')
+  }
+}
 
 const handleUploadSuccess = (response: any, file: any, fileList: any) => {
   ElMessage.success(`${file.name} uploaded successfully.`);
