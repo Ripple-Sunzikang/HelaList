@@ -16,7 +16,7 @@
         v-for="(item, index) in fileItems"
         :key="item.id"
         class="file-block"
-        @click="item.isDir ? openFolder(item) : toggleSelection(item)"
+        @click="openFile(item)"
         :class="{ selected: isSelected(item) }"
       >
         <!-- Selection Checkbox -->
@@ -35,17 +35,18 @@
         </div>
 
         <!-- Actions Dropdown -->
-  <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, item, index)" class="file-actions">
-            <el-button :icon="MoreFilled" circle link class="more-button" @click.stop />
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="download" :icon="Download" :disabled="item.isDir">Download</el-dropdown-item>
-                <el-dropdown-item command="rename" :icon="EditPen">Rename</el-dropdown-item>
-                <el-dropdown-item command="move" :icon="Rank">Move</el-dropdown-item>
-                <el-dropdown-item command="delete" :icon="Delete" divided>Delete</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+        <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, item, index)" class="file-actions">
+          <el-button :icon="MoreFilled" circle link class="more-button" @click.stop />
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="preview" :icon="View" v-if="['video', 'image', 'pdf', 'document', 'audio'].includes(item.type)">Preview</el-dropdown-item>
+              <el-dropdown-item command="download" :icon="Download" :disabled="item.isDir">Download</el-dropdown-item>
+              <el-dropdown-item command="rename" :icon="EditPen">Rename</el-dropdown-item>
+              <el-dropdown-item command="move" :icon="Rank">Move</el-dropdown-item>
+              <el-dropdown-item command="delete" :icon="Delete" divided>Delete</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
@@ -57,12 +58,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useDriveStore } from '@/stores/drive'
+import { useDriveStore } from '@/stores/drive';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { 
-  ArrowRight, Download, Delete, Folder, Document, Picture, VideoPlay, Headset, MoreFilled, EditPen, Rank 
+import {
+  ArrowRight, Download, Delete, Folder, Document, Picture, VideoPlay, Headset, MoreFilled, EditPen, Rank, View
 } from '@element-plus/icons-vue';
-import { api } from '@/api'
+import { api } from '@/api';
 
 // Types
 interface FileItem {
@@ -79,60 +80,81 @@ interface FileItem {
 const loading = ref(false);
 const fileItems = ref<FileItem[]>([]);
 const selectedItems = ref<FileItem[]>([]);
-const driveStore = useDriveStore()
-const currentPath = ref(driveStore.currentPath || '') // '' 表示 root
+const driveStore = useDriveStore();
+const currentPath = ref(driveStore.currentPath || ''); // '' 表示 root
 
 // computed breadcrumb segments
 const breadcrumbSegments = computed(() => {
-  if (!currentPath.value) return []
-  return currentPath.value.split('/').filter(Boolean)
-})
+  if (!currentPath.value) return [];
+  return currentPath.value.split('/').filter(Boolean);
+});
 
 // helper: build api url for a given path
 function buildListUrl(path: string, refresh = false) {
   // backend route: /api/fs/list/*path  where *path may be omitted or like /a/b
-  const q = refresh ? '?refresh=true' : ''
+  const q = refresh ? '?refresh=true' : '';
   if (!path || path === '' || path === '/') {
-    return `/api/fs/list${q}`
+    return `/api/fs/list${q}`;
   }
-  const normalized = path.startsWith('/') ? path : `/${path}`
-  return `/api/fs/list${normalized}${q}`
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return `/api/fs/list${normalized}${q}`;
+}
+
+function getFileType(name: string): string {
+  const extension = name.split('.').pop()?.toLowerCase();
+  if (!extension) return 'file';
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(extension)) {
+    return 'image';
+  }
+  if (['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm'].includes(extension)) {
+    return 'video';
+  }
+  if (['mp3', 'wav', 'flac', 'aac', 'ogg'].includes(extension)) {
+    return 'audio';
+  }
+  if (['pdf'].includes(extension)) {
+    return 'pdf';
+  }
+  if (['txt', 'md', 'json', 'xml', 'html', 'css', 'js'].includes(extension)) {
+    return 'document';
+  }
+  return 'file';
 }
 
 async function loadList(path = '', refresh = false) {
-  loading.value = true
+  loading.value = true;
   try {
-    const url = buildListUrl(path, refresh)
-    const data = await api.get<any>(url)
+    const url = buildListUrl(path, refresh);
+    const data = await api.get<any>(url);
     // data expected to be { content: ObjResp[], total: number, write: boolean }
-    const content = data?.content || []
+    const content = data?.content || [];
     fileItems.value = content.map((it: any) => ({
       id: it.id,
       name: it.name,
-      type: it.is_dir ? 'folder' : 'file',
+      type: it.is_dir ? 'folder' : getFileType(it.name),
       modified: it.modified ? new Date(it.modified).getTime() : 0,
       size: it.size || 0,
       path: it.path || '',
       isDir: !!it.is_dir,
-    }))
+    }));
   } catch (err: any) {
-    ElMessage.error(err.message || 'Failed to load files')
+    ElMessage.error(err.message || 'Failed to load files');
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 onMounted(() => {
   // initialize from store
-  currentPath.value = driveStore.currentPath || ''
-  loadList(currentPath.value, true)
-  const handler = () => loadList(currentPath.value, true)
-  window.addEventListener('hela-files-updated', handler)
+  currentPath.value = driveStore.currentPath || '';
+  loadList(currentPath.value, true);
+  const handler = () => loadList(currentPath.value, true);
+  window.addEventListener('hela-files-updated', handler);
   // cleanup on unmount
   onUnmounted(() => {
-    window.removeEventListener('hela-files-updated', handler)
-  })
-})
+    window.removeEventListener('hela-files-updated', handler);
+  });
+});
 
 // Methods
 const getFileIcon = (type: string) => {
@@ -141,6 +163,8 @@ const getFileIcon = (type: string) => {
     case 'image': return Picture;
     case 'video': return VideoPlay;
     case 'audio': return Headset;
+    case 'pdf': return Document; // Or a more specific PDF icon if available
+    case 'document': return Document;
     default: return Document;
   }
 };
@@ -158,17 +182,31 @@ const toggleSelection = (item: FileItem) => {
 };
 
 const openFolder = (item: FileItem) => {
-  if (!item.isDir) return
+  if (!item.isDir) return;
   // set current path to item's path and reload
-  currentPath.value = item.path || `/${item.name}`
-  driveStore.setPath(currentPath.value)
-  loadList(currentPath.value, false)
-}
+  currentPath.value = item.path || `/${item.name}`;
+  driveStore.setPath(currentPath.value);
+  loadList(currentPath.value, false);
+};
+
+const openFile = (item: FileItem) => {
+  const previewableTypes = ['video', 'image', 'pdf', 'document', 'audio'];
+  if (item.isDir) {
+    openFolder(item);
+  } else if (previewableTypes.includes(item.type)) {
+    window.open(`/api/fs/download${item.path}`, '_blank');
+  } else {
+    toggleSelection(item);
+  }
+};
 
 const handleCommand = (command: string, item: FileItem, index: number) => {
   switch (command) {
+    case 'preview':
+      openFile(item);
+      break;
     case 'download':
-      ElMessage.success(`Downloading: ${item.name}`);
+      window.open(`/api/fs/download${item.path}`, '_blank');
       break;
     case 'rename':
       ElMessageBox.prompt('Please enter a new name', 'Rename', {
@@ -177,11 +215,11 @@ const handleCommand = (command: string, item: FileItem, index: number) => {
         inputValue: item.name,
       }).then(async ({ value }) => {
         try {
-          await api.fs.rename(item.path, value)
+          await api.fs.rename(item.path, value);
           fileItems.value[index].name = value;
           ElMessage.success('Renamed successfully');
         } catch (err: any) {
-          ElMessage.error(err.message || 'Failed to rename')
+          ElMessage.error(err.message || 'Failed to rename');
         }
       });
       break;
@@ -195,27 +233,26 @@ const handleCommand = (command: string, item: FileItem, index: number) => {
         type: 'warning',
       }).then(async () => {
         try {
-          await api.fs.remove(item.path)
+          await api.fs.remove(item.path);
           fileItems.value.splice(index, 1);
           ElMessage.success('File deleted');
         } catch (err: any) {
-          ElMessage.error(err.message || 'Failed to delete')
+          ElMessage.error(err.message || 'Failed to delete');
         }
       });
       break;
   }
 };
 
-const refresh = () => loadList(currentPath.value, true)
+const refresh = () => loadList(currentPath.value, true);
 
 // upload handled by DriveMain; FilesView listens for 'hela-files-updated' and refreshes
 
 const goRoot = () => {
-  currentPath.value = ''
-  driveStore.setPath('')
-  loadList('', true)
-}
-
+  currentPath.value = '';
+  driveStore.setPath('');
+  loadList('', true);
+};
 </script>
 
 <style scoped>

@@ -10,6 +10,7 @@ import (
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
 	"github.com/OpenListTeam/go-cache"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // 需要修改
@@ -33,6 +34,22 @@ func GetGuest() (*model.User, error) {
 	if guestUser == nil {
 		user, err := service.GetUserByIdentity(model.GUEST)
 		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// Create guest user
+				guest := &model.User{
+					Username: "guest",
+					Email:    "guest@helalist.com",
+					Identity: model.GUEST,
+					Disabled: false,
+					BasePath: "/",
+				}
+				guest.SetPassword("guest") // Or some random password
+				if err := service.CreateUser(guest); err != nil {
+					return nil, err
+				}
+				guestUser = guest
+				return guestUser, nil
+			}
 			return nil, err
 		}
 		guestUser = user

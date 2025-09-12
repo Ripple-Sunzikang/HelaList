@@ -46,6 +46,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     Sidebar: typeof import('./src/components/Sidebar.vue')['default']
     TheWelcome: typeof import('./src/components/TheWelcome.vue')['default']
+    VideoPlayer: typeof import('./src/components/VideoPlayer.vue')['default']
     WelcomeItem: typeof import('./src/components/WelcomeItem.vue')['default']
   }
   export interface GlobalDirectives {

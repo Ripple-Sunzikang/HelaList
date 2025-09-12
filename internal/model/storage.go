@@ -20,7 +20,12 @@ type Storage struct {
 	ModifiedTime    time.Time `json:"modified_time"`                               // 修改时间
 	Disabled        bool      `json:"disabled"`                                    // 该存储是否被禁用
 	Sort                      // 排序用
-	// 注意，有可能还需要设计一个代理Proxy。但现在来说不是必须的
+	// 代理配置
+	WebProxy         bool   `json:"web_proxy"`          // 是否启用Web代理
+	WebdavPolicy     string `json:"webdav_policy"`      // WebDAV策略
+	ProxyRange       bool   `json:"proxy_range"`        // 是否支持范围请求代理
+	DownProxyURL     string `json:"down_proxy_url"`     // 下载代理URL
+	DisableProxySign bool   `json:"disable_proxy_sign"` // 禁用代理签名
 }
 
 // 文件的默认排序
@@ -54,19 +59,11 @@ func (s *Storage) SetStatus(status string) {
 	s.Status = status
 }
 
-// type Proxy struct {
-// 	WebProxy     bool   `json:"web_proxy"`
-// 	WebdavPolicy string `json:"webdav_policy"`
-// 	ProxyRange   bool   `json:"proxy_range"`
-// 	DownProxyURL string `json:"down_proxy_url"`
-// 	//Disable sign for DownProxyURL
-// 	DisableProxySign bool `json:"disable_proxy_sign"`
-// }
+// WebDAV策略相关方法
+func (s *Storage) Webdav302() bool {
+	return s.WebdavPolicy == "302_redirect"
+}
 
-// func (p Proxy) Webdav302() bool {
-// 	return p.WebdavPolicy == "302_redirect"
-// }
-
-// func (p Proxy) WebdavProxyURL() bool {
-// 	return p.WebdavPolicy == "use_proxy_url"
-// }
+func (s *Storage) WebdavProxyURL() bool {
+	return s.WebdavPolicy == "use_proxy_url"
+}

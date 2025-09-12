@@ -88,5 +88,11 @@ func registerFsRoutes(r *gin.Engine) {
 		fs.POST("/remove", handler.FsRemoveHandler)
 		fs.POST("/put", handler.FsPutHandler)
 		fs.POST("/link", handler.FsLinkHandler)
+
+		// 下载、预览和流媒体相关路由
+		fs.GET("/download/*path", handler.DownloadHandler) // 文件下载
+		fs.GET("/preview/*path", handler.PreviewHandler)   // 文件预览
+		fs.GET("/proxy/*path", handler.ProxyHandler)       // 代理访问
+		fs.GET("/stream/*path", handler.StreamHandler)     // 流媒体播放
 	}
 }

@@ -35,6 +35,7 @@ type Addition struct {
 var config = driver.Config{
 	Name:        "webdav",
 	LocalSort:   true,
+	OnlyProxy:   true, // WebDAV需要代理访问
 	DefaultRoot: "/",
 }
 
