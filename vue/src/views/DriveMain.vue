@@ -31,13 +31,13 @@
       </el-main>
     </el-container>
 
-    <!-- Upload Dialog (Refactored) -->
+    <!-- Upload Dialog (uses backend /api/fs/put) -->
     <el-dialog v-model="showUploadModal" title="Upload Files" width="500px">
       <el-upload
         class="upload-dragger"
         drag
-        action="https://run.mocky.io/v3/9d059bf9-4660-45f2-925d-ce80ad6c4d15" 
         multiple
+        :http-request="httpUpload"
         :on-success="handleUploadSuccess"
       >
         <el-icon class="el-icon--upload"><upload-filled /></el-icon>
@@ -46,7 +46,7 @@
         </div>
         <template #tip>
           <div class="el-upload__tip">
-            jpg/png files with a size less than 500kb
+            Drop files to upload to current directory
           </div>
         </template>
       </el-upload>
@@ -57,6 +57,7 @@
 
 <script setup lang="ts">
 import { ref, computed, shallowRef } from 'vue';
+import { useDriveStore } from '@/stores/drive'
 import Sidebar from '../components/Sidebar.vue';
 import FilesView from './drive/FilesView.vue';
 import DownloadsView from './drive/DownloadsView.vue';
@@ -113,9 +114,47 @@ const handleUploadSuccess = (response: any, file: any, fileList: any) => {
   if (fileList.every((f: any) => f.status === 'success')) {
     setTimeout(() => {
       showUploadModal.value = false;
+      // notify FilesView to reload
+      try { window.dispatchEvent(new CustomEvent('hela-files-updated')) } catch(e) {}
     }, 1000);
   }
 };
+
+// custom http upload handler for el-upload
+const httpUpload = async (options: any) => {
+  // options: { file, onProgress, onSuccess, onError }
+  const { file, onProgress, onSuccess, onError } = options
+  try {
+    const form = new FormData()
+  const driveStore = useDriveStore()
+  const target = driveStore.currentPath || '/'
+  form.append('path', target)
+    form.append('file', file)
+
+    const token = localStorage.getItem('token') || ''
+    const resp = await fetch('/api/fs/put', {
+      method: 'POST',
+      body: form,
+      headers: token ? { 'Authorization': `Bearer ${token}` } : undefined,
+    })
+
+    if (!resp.ok) {
+      const text = await resp.text()
+      onError(new Error(`Upload failed: ${resp.status} ${text}`))
+      return
+    }
+
+    const json = await resp.json()
+    // backend wraps response as { code, message, data }
+    if (json.code && json.code !== 200) {
+      onError(new Error(json.message || 'upload error'))
+      return
+    }
+    onSuccess(json.data)
+  } catch (err: any) {
+    onError(err)
+  }
+}
 
 </script>
 

@@ -2,11 +2,15 @@
   <div class="files-view">
     <!-- Breadcrumb -->
     <el-breadcrumb :separator-icon="ArrowRight">
-      <el-breadcrumb-item @click.native.prevent="() => { currentPath = ''; loadList('', true) }">Root</el-breadcrumb-item>
+      <el-breadcrumb-item @click="goRoot">Root</el-breadcrumb-item>
       <el-breadcrumb-item v-for="(seg, idx) in breadcrumbSegments" :key="idx">{{ seg }}</el-breadcrumb-item>
     </el-breadcrumb>
 
     <!-- File Grid -->
+    <div class="toolbar" style="margin: 12px 0; display:flex; gap:8px; align-items:center;">
+      <el-button type="info" @click="refresh">Refresh</el-button>
+    </div>
+
     <div v-if="fileItems.length > 0" class="file-grid">
       <div
         v-for="(item, index) in fileItems"
@@ -31,7 +35,7 @@
         </div>
 
         <!-- Actions Dropdown -->
-        <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, item, index)" class="file-actions">
+  <el-dropdown trigger="click" @command="handleCommandFromDropdown.bind(null, item, index)" class="file-actions">
           <el-button :icon="MoreFilled" circle link class="more-button" @click.stop />
           <template #dropdown>
             <el-dropdown-menu>
@@ -52,7 +56,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useDriveStore } from '@/stores/drive'
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
   ArrowRight, Download, Delete, Folder, Document, Picture, VideoPlay, Headset, MoreFilled, EditPen, Rank 
@@ -74,7 +79,8 @@ interface FileItem {
 const loading = ref(false);
 const fileItems = ref<FileItem[]>([]);
 const selectedItems = ref<FileItem[]>([]);
-const currentPath = ref('') // '' 表示 root
+const driveStore = useDriveStore()
+const currentPath = ref(driveStore.currentPath || '') // '' 表示 root
 
 // computed breadcrumb segments
 const breadcrumbSegments = computed(() => {
@@ -117,7 +123,15 @@ async function loadList(path = '', refresh = false) {
 }
 
 onMounted(() => {
+  // initialize from store
+  currentPath.value = driveStore.currentPath || ''
   loadList(currentPath.value, true)
+  const handler = () => loadList(currentPath.value, true)
+  window.addEventListener('hela-files-updated', handler)
+  // cleanup on unmount
+  onUnmounted(() => {
+    window.removeEventListener('hela-files-updated', handler)
+  })
 })
 
 // Methods
@@ -147,6 +161,7 @@ const openFolder = (item: FileItem) => {
   if (!item.isDir) return
   // set current path to item's path and reload
   currentPath.value = item.path || `/${item.name}`
+  driveStore.setPath(currentPath.value)
   loadList(currentPath.value, false)
 }
 
@@ -180,6 +195,20 @@ const handleCommand = (command: string, item: FileItem, index: number) => {
       break;
   }
 };
+
+const refresh = () => loadList(currentPath.value, true)
+
+const handleCommandFromDropdown = (item: FileItem, index: number, cmd: any) => {
+  handleCommand(cmd as string, item, index)
+}
+
+// upload handled by DriveMain; FilesView listens for 'hela-files-updated' and refreshes
+
+const goRoot = () => {
+  currentPath.value = ''
+  driveStore.setPath('')
+  loadList('', true)
+}
 
 </script>
 
