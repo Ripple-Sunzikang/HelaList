@@ -474,6 +474,46 @@ const handleActionResult = (actionType: string, result: any) => {
       }, 500)
       break
       
+    case 'search_images_by_description':
+      // 处理图片搜索结果
+      console.log('处理search_images_by_description结果:', result)
+      if (result && result.result && result.result.results) {
+        const searchResults = result.result.results
+        const searchTerm = result.result.search_term || '未知'
+        const searchPath = result.result.search_path || '/'
+        
+        if (Array.isArray(searchResults) && searchResults.length > 0) {
+          let searchResultText = `🔍 **图片搜索结果：**\n\n`
+          searchResultText += `搜索关键词：${searchTerm}\n`
+          searchResultText += `搜索路径：${searchPath}\n`
+          searchResultText += `找到 ${searchResults.length} 张匹配的图片：\n\n`
+          
+          searchResults.forEach((item: any, index: number) => {
+            const similarity = (item.similarity * 100).toFixed(1)
+            searchResultText += `${index + 1}. 📷 **${item.path}**\n`
+            searchResultText += `   相似度：${similarity}%\n`
+            if (item.description) {
+              // 截断过长的描述
+              let desc = item.description
+              if (desc.length > 100) {
+                desc = desc.substring(0, 100) + '...'
+              }
+              searchResultText += `   描述：${desc}\n`
+            }
+            searchResultText += '\n'
+          })
+          
+          addMessage('ai', searchResultText)
+          console.log('添加图片搜索结果消息')
+        } else {
+          addMessage('ai', `🔍 **图片搜索结果：**\n\n搜索关键词：${searchTerm}\n搜索路径：${searchPath}\n\n❌ 没有找到匹配的图片。您可以尝试使用其他关键词进行搜索。`)
+        }
+      } else {
+        console.error('图片搜索结果为空或结构不正确:', result)
+        addMessage('ai', '❌ 图片搜索失败，请稍后重试。')
+      }
+      break
+      
     case 'create_folder':
     case 'delete_item':
     case 'rename_item':

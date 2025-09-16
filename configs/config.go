@@ -38,7 +38,7 @@ func DefaultConfig(dataDir string) *Config {
 			User:     "suzuki",
 			Password: "suzuki",
 			Name:     "hela",
-			DSN:      "host=localhost user=suzuki password=suzuki dbname=hela port=5432 sslmode=disable TimeZone=Asia/Shanghai",
+			DSN:      "host=localhost user=suzuki password=suzuki dbname=hela port=5432 sslmode=disable TimeZone=Asia/Shanghai client_encoding=UTF8",
 		},
 		Redis: *redis.DefaultConfig(),
 		RAG: RAGConfig{

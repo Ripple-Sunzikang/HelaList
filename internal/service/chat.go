@@ -243,17 +243,21 @@ func (s *ChatService) callAIWithContext(messages []model.ChatMessage, ragContext
 7. preview_image - 预览图片文件（支持jpg、png、gif、webp、svg等格式）
 8. analyze_image - 分析图片内容（描述图片中的内容、识别文字、分析细节等）
 9. preview_document - 预览文档内容（支持txt、md、log、json、yaml、xml、html、css、js、go、py、java、c、cpp等常见文本文档）
+10. search_images_by_description - 根据描述搜索网盘中匹配的图片
 
 主要能力：
 1. 记住之前的对话内容，保持对话连贯性
 2. 基于文档内容回答问题（如果有相关文档）
 3. 协助用户进行虚拟网盘文件管理操作
+4. 智能图片搜索：根据用户描述的图片内容，在整个网盘中搜索匹配的图片
 
 重要规则：
 1. 当用户只是问候（如"你好"、"谢谢"、"再见"等）或询问功能时，只需要友好回复，不要添加任何操作标记
 2. 只有当用户明确要求执行具体文件操作或图片分析时，才添加操作标记
 3. 所有路径必须是虚拟网盘的路径，以"/"开头，使用Unix风格
 4. 不要使用物理文件系统路径（如C:\Users\），而要使用虚拟网盘路径（如/用户名/）
+5. 当用户描述图片内容并要求查找时，使用search_images_by_description操作
+6. 理解用户的搜索意图：包括颜色、物体、场景、人物、动物、文字内容等各种描述
 
 当需要执行操作时，操作标记的格式必须严格遵循：
 [OPERATION:操作类型:参数1=值1,参数2=值2]
@@ -268,6 +272,20 @@ func (s *ChatService) callAIWithContext(messages []model.ChatMessage, ragContext
 - 预览图片: [OPERATION:preview_image:path=图片文件路径]
 - 分析图片: [OPERATION:analyze_image:path=图片文件路径]
 - 预览文档: [OPERATION:preview_document:path=文档文件路径]
+- 根据描述搜索图片: [OPERATION:search_images_by_description:description=图片内容描述,search_path=搜索路径(可选,默认为/)]
+
+图片搜索示例：
+用户："帮我找一下有蓝天白云的风景照片"
+你的回复："我来帮您搜索网盘中有蓝天白云的风景照片。
+[OPERATION:search_images_by_description:description=蓝天白云的风景照片]"
+
+用户："找一下我的猫咪照片，应该在/pets文件夹里"
+你的回复："我来帮您在pets文件夹中搜索猫咪照片。
+[OPERATION:search_images_by_description:description=猫咪照片,search_path=/pets]"
+
+用户："有没有红色汽车的图片？"
+你的回复："我来为您搜索网盘中红色汽车的图片。
+[OPERATION:search_images_by_description:description=红色汽车]"
 
 请用中文回复，保持友好和专业的语调。只有明确的操作请求才需要添加操作标记。`
 
@@ -395,23 +413,30 @@ func generateSessionID() string {
 	return fmt.Sprintf("chat_%d_%d", time.Now().Unix(), time.Now().UnixNano()%1000000)
 }
 
-// truncateText 截断文本到指定长度
+// truncateText 截断文本到指定长度（正确处理UTF-8字符）
 func truncateText(text string, maxLen int) string {
 	text = strings.TrimSpace(text)
-	if len(text) <= maxLen {
+
+	// 使用rune来正确计算字符数，而不是字节数
+	runes := []rune(text)
+	if len(runes) <= maxLen {
 		return text
 	}
 
 	// 尝试在单词边界截断
 	if maxLen > 10 {
 		for i := maxLen - 1; i > maxLen/2; i-- {
-			if text[i] == ' ' || text[i] == '\n' || text[i] == '\t' {
-				return text[:i] + "..."
+			if i < len(runes) && (runes[i] == ' ' || runes[i] == '\n' || runes[i] == '\t') {
+				return string(runes[:i]) + "..."
 			}
 		}
 	}
 
-	return text[:maxLen-3] + "..."
+	// 确保在字符边界截断
+	if maxLen > 3 {
+		return string(runes[:maxLen-3]) + "..."
+	}
+	return string(runes[:maxLen])
 }
 
 // parseAIResponse 解析AI回复中的操作指令

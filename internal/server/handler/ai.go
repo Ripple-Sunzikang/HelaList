@@ -7,12 +7,15 @@ import (
 	"HelaList/internal/rag"
 	"HelaList/internal/service"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -415,12 +418,15 @@ func processAIRequestWithRAG(message string, useRAG bool, filePaths []string) (s
 7. preview_image - 预览图片文件（支持jpg、png、gif、webp、svg等格式）
 8. analyze_image - 分析图片内容（描述图片中的内容、识别文字、分析细节等）
 9. preview_document - 预览文档内容（支持txt、md、log、json、yaml、xml、html、css、js、go、py、java、c、cpp等常见文本文档）
+10. search_images_by_description - 根据描述搜索网盘中匹配的图片
 
 重要规则：
 1. 当用户只是问候（如"你好"、"谢谢"、"再见"等）或询问功能时，只需要友好回复，不要添加任何操作标记
 2. 只有当用户明确要求执行具体文件操作或图片分析时，才添加操作标记
 3. 所有路径必须是虚拟网盘的路径，以"/"开头，使用Unix风格
 4. 不要使用物理文件系统路径（如C:\Users\），而要使用虚拟网盘路径（如/用户名/）
+5. 当用户描述图片内容并要求查找时，使用search_images_by_description操作
+6. 理解用户的搜索意图：包括颜色、物体、场景、人物、动物、文字内容等各种描述
 
 当需要执行操作时，操作标记的格式必须严格遵循：
 [OPERATION:操作类型:参数1=值1,参数2=值2]
@@ -435,6 +441,7 @@ func processAIRequestWithRAG(message string, useRAG bool, filePaths []string) (s
 - 预览图片: [OPERATION:preview_image:path=图片文件路径]
 - 分析图片: [OPERATION:analyze_image:path=图片文件路径]
 - 预览文档: [OPERATION:preview_document:path=文档文件路径]
+- 根据描述搜索图片: [OPERATION:search_images_by_description:description=图片内容描述,search_path=搜索路径(可选,默认为/)]
 
 示例回复：
 用户："你好"
@@ -451,6 +458,14 @@ func processAIRequestWithRAG(message string, useRAG bool, filePaths []string) (s
 用户："在当前目录创建小明文件夹"
 你的回复："我将为您创建一个名为小明的文件夹。请告诉我您当前在哪个目录，或者我在根目录下为您创建：
 [OPERATION:create_folder:path=/小明]"
+
+用户："帮我找一下有蓝天白云的风景照片"
+你的回复："我来帮您搜索网盘中有蓝天白云的风景照片。
+[OPERATION:search_images_by_description:description=蓝天白云的风景照片]"
+
+用户："找一下我的猫咪照片，应该在/pets文件夹里"
+你的回复："我来帮您在pets文件夹中搜索猫咪照片。
+[OPERATION:search_images_by_description:description=猫咪照片,search_path=/pets]"
 
 请用中文回复。只有明确的操作请求才需要添加操作标记。`
 
@@ -899,6 +914,37 @@ func executeOperation(c *gin.Context, operation string, params map[string]interf
 		fmt.Printf("返回结果: %+v\n", result)
 		return result, nil
 
+	case "search_images_by_description":
+		description, ok := params["description"].(string)
+		if !ok || description == "" {
+			return nil, fmt.Errorf("missing or invalid description parameter")
+		}
+
+		searchPath := "/"
+		if path, exists := params["search_path"].(string); exists && path != "" {
+			searchPath = path
+		}
+
+		fmt.Printf("开始搜索图片，描述: %s, 路径: %s\n", description, searchPath)
+
+		// 调用图片搜索功能
+		results, err := searchImagesByDescription(ctx, description, searchPath)
+		if err != nil {
+			fmt.Printf("搜索图片失败: %v\n", err)
+			return nil, fmt.Errorf("搜索图片失败: %v", err)
+		}
+
+		fmt.Printf("搜索完成，找到 %d 张匹配的图片\n", len(results))
+
+		return gin.H{
+			"success":     true,
+			"message":     fmt.Sprintf("找到 %d 张匹配的图片", len(results)),
+			"results":     results,
+			"type":        "image_search_results",
+			"search_term": description,
+			"search_path": searchPath,
+		}, nil
+
 	default:
 		return nil, fmt.Errorf("unsupported operation: %s", operation)
 	}
@@ -1186,4 +1232,175 @@ func RAGSearchHandler(c *gin.Context) {
 		"message": "success",
 		"data":    result,
 	})
+}
+
+// searchImagesByDescription 根据描述搜索网盘中匹配的图片
+func searchImagesByDescription(ctx context.Context, description, searchPath string) ([]map[string]interface{}, error) {
+	// 1. 首先获取指定路径下的所有图片文件
+	imageFiles, err := getAllImageFiles(ctx, searchPath)
+	if err != nil {
+		return nil, fmt.Errorf("获取图片文件列表失败: %v", err)
+	}
+
+	fmt.Printf("在路径 %s 中找到 %d 个图片文件\n", searchPath, len(imageFiles))
+
+	var matchedImages []map[string]interface{}
+
+	// 2. 遍历每张图片，使用AI分析其内容
+	for i, imagePath := range imageFiles {
+		fmt.Printf("正在分析第 %d/%d 张图片: %s\n", i+1, len(imageFiles), imagePath)
+
+		// 调用千问API分析图片内容
+		imageDescription, err := analyzeImageWithQwen(imagePath)
+		if err != nil {
+			log.Printf("分析图片 %s 失败: %v", imagePath, err)
+			continue
+		}
+
+		// 3. 使用AI判断图片描述是否匹配用户的搜索描述
+		isMatch, similarity, err := checkDescriptionMatch(description, imageDescription)
+		if err != nil {
+			log.Printf("匹配判断失败: %v", err)
+			continue
+		}
+
+		if isMatch {
+			matchedImages = append(matchedImages, map[string]interface{}{
+				"path":        imagePath,
+				"description": imageDescription,
+				"similarity":  similarity,
+			})
+			fmt.Printf("匹配成功: %s (相似度: %.2f)\n", imagePath, similarity)
+		}
+	}
+
+	// 4. 按相似度排序
+	sort.Slice(matchedImages, func(i, j int) bool {
+		return matchedImages[i]["similarity"].(float64) > matchedImages[j]["similarity"].(float64)
+	})
+
+	return matchedImages, nil
+}
+
+// getAllImageFiles 递归获取指定路径下的所有图片文件
+func getAllImageFiles(ctx context.Context, rootPath string) ([]string, error) {
+	var imageFiles []string
+
+	// 递归遍历目录，收集所有图片文件
+	err := walkDirectory(ctx, rootPath, func(path string, isDir bool) error {
+		if !isDir && isImageFile(path) {
+			imageFiles = append(imageFiles, path)
+		}
+		return nil
+	})
+
+	return imageFiles, err
+}
+
+// walkDirectory 递归遍历目录
+func walkDirectory(ctx context.Context, rootPath string, fn func(path string, isDir bool) error) error {
+	// 获取当前目录的内容
+	objs, err := fs.List(ctx, rootPath, &fs.ListArgs{})
+	if err != nil {
+		return fmt.Errorf("无法列出目录 %s: %v", rootPath, err)
+	}
+
+	for _, obj := range objs {
+		itemPath := rootPath
+		if !strings.HasSuffix(itemPath, "/") {
+			itemPath += "/"
+		}
+		itemPath += obj.GetName()
+
+		// 调用回调函数处理当前项目
+		if err := fn(itemPath, obj.IsDir()); err != nil {
+			return err
+		}
+
+		// 如果是目录，递归遍历
+		if obj.IsDir() {
+			if err := walkDirectory(ctx, itemPath, fn); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// checkDescriptionMatch 使用AI判断两个描述是否匹配
+func checkDescriptionMatch(searchDesc, imageDesc string) (bool, float64, error) {
+	// 使用AI来判断两个描述是否匹配
+	prompt := fmt.Sprintf(`请判断以下两个图片描述是否匹配，并给出相似度评分(0-1之间的小数)：
+
+搜索描述：%s
+图片描述：%s
+
+请直接返回JSON格式，不要添加任何代码块标记或额外说明：
+{
+    "match": true,
+    "similarity": 0.85,
+    "reason": "匹配原因说明"
+}
+
+判断标准：
+- 如果图片描述中包含搜索描述的主要元素，则认为匹配
+- 相似度评分应该反映匹配程度，1.0表示完全匹配，0.0表示完全不匹配
+- 只有相似度>0.5才认为是匹配的
+- 对于颜色、物体、场景等关键词要适当放宽匹配条件`, searchDesc, imageDesc)
+	
+	response, _, err := callQwenAPI("你是一个图片描述匹配专家，请准确判断两个描述的相似度，直接返回JSON格式，不要添加任何markdown标记。", prompt)
+	if err != nil {
+		return false, 0, err
+	}
+	
+	// 清理响应，移除可能的代码块标记
+	cleanResponse := strings.TrimSpace(response)
+	cleanResponse = strings.TrimPrefix(cleanResponse, "```json")
+	cleanResponse = strings.TrimPrefix(cleanResponse, "```")
+	cleanResponse = strings.TrimSuffix(cleanResponse, "```")
+	cleanResponse = strings.TrimSpace(cleanResponse)
+	
+	// 如果响应中包含JSON，尝试提取
+	if jsonStart := strings.Index(cleanResponse, "{"); jsonStart != -1 {
+		if jsonEnd := strings.LastIndex(cleanResponse, "}"); jsonEnd != -1 && jsonEnd > jsonStart {
+			cleanResponse = cleanResponse[jsonStart:jsonEnd+1]
+		}
+	}
+	
+	// 解析JSON响应
+	var result struct {
+		Match      bool    `json:"match"`
+		Similarity float64 `json:"similarity"`
+		Reason     string  `json:"reason"`
+	}
+	
+	if err := json.Unmarshal([]byte(cleanResponse), &result); err != nil {
+		// 如果JSON解析失败，使用改进的文本匹配
+		log.Printf("JSON解析失败，使用改进的文本匹配: %v, 响应内容: %s", err, cleanResponse)
+		return improvedTextMatch(searchDesc, imageDesc), 0.7, nil
+	}
+	
+	// 降低匹配阈值，使其更容易匹配
+	return result.Match && result.Similarity > 0.5, result.Similarity, nil
+}
+
+// improvedTextMatch 改进的文本匹配算法
+func improvedTextMatch(searchDesc, imageDesc string) bool {
+	searchLower := strings.ToLower(searchDesc)
+	imageLower := strings.ToLower(imageDesc)
+	
+	// 分割搜索词
+	searchWords := strings.Fields(searchLower)
+	
+	// 计算匹配的关键词数量
+	matchCount := 0
+	for _, word := range searchWords {
+		if strings.Contains(imageLower, word) {
+			matchCount++
+		}
+	}
+	
+	// 如果超过50%的关键词匹配，则认为匹配
+	return float64(matchCount)/float64(len(searchWords)) > 0.5
 }
