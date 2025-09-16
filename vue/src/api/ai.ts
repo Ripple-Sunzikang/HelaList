@@ -51,6 +51,10 @@ export interface ChatResponse {
     content: string
     similarity: number
   }>
+  actions?: Array<{
+    type: string
+    params: any
+  }>
 }
 
 export interface CreateSessionRequest {

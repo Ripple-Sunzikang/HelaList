@@ -52,6 +52,13 @@ type ChatResponse struct {
 	SessionID string       `json:"session_id"`
 	Message   string       `json:"message"`
 	Context   []RAGContext `json:"context,omitempty"` // RAG上下文
+	Actions   []AIAction   `json:"actions,omitempty"` // AI操作指令
+}
+
+// AIAction AI操作指令
+type AIAction struct {
+	Type   string                 `json:"type"`
+	Params map[string]interface{} `json:"params"`
 }
 
 // RAGContext RAG上下文信息

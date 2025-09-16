@@ -311,6 +311,20 @@ const sendMessage = async () => {
     // 添加AI回复
     addMessage('ai', response.data.message, undefined, response.data.context)
 
+    // 处理AI操作指令
+    if (response.data.actions && response.data.actions.length > 0) {
+      console.log('收到AI操作指令:', response.data.actions)
+      
+      for (const action of response.data.actions) {
+        try {
+          await executeAction(action)
+        } catch (error) {
+          console.error('执行操作失败:', error)
+          addMessage('ai', `❌ 操作执行失败: ${error instanceof Error ? error.message : '未知错误'}`)
+        }
+      }
+    }
+
   } catch (error) {
     console.error('聊天错误:', error)
     addMessage('ai', '抱歉，我遇到了一些问题，请稍后再试 😔')

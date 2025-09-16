@@ -396,8 +396,14 @@ func UpdateChatSessionHandler(c *gin.Context) {
 }
 
 func processAIRequestWithRAG(message string, useRAG bool, filePaths []string) (string, []AIAction, error) {
-	// 基础系统提示词
-	systemPrompt := `你是HelaList文件管理系统的AI助手。用户可以通过自然语言与你交流来操作文件系统。
+	// 基础系统提示词 - 使用与processAIRequest相同的完整提示词
+	systemPrompt := `你是HelaList文件管理系统的AI助手。用户可以通过自然语言与你交流来操作虚拟网盘文件系统。
+
+重要说明：这是一个虚拟网盘系统，文件路径结构如下：
+- "/" 表示虚拟网盘的根目录
+- "/documents" 表示根目录下的documents文件夹  
+- "/images/photos" 表示images文件夹下的photos子文件夹
+- 路径都是以"/"开头的Unix风格路径，不要使用Windows风格的路径（如C:\）
 
 你可以执行以下操作：
 1. list_files - 列出目录内容
@@ -413,7 +419,8 @@ func processAIRequestWithRAG(message string, useRAG bool, filePaths []string) (s
 重要规则：
 1. 当用户只是问候（如"你好"、"谢谢"、"再见"等）或询问功能时，只需要友好回复，不要添加任何操作标记
 2. 只有当用户明确要求执行具体文件操作或图片分析时，才添加操作标记
-3. 所有路径必须是真实存在的文件系统路径，不要使用模糊的描述如"当前目录"、"这个文件夹"等
+3. 所有路径必须是虚拟网盘的路径，以"/"开头，使用Unix风格
+4. 不要使用物理文件系统路径（如C:\Users\），而要使用虚拟网盘路径（如/用户名/）
 
 当需要执行操作时，操作标记的格式必须严格遵循：
 [OPERATION:操作类型:参数1=值1,参数2=值2]
@@ -428,6 +435,22 @@ func processAIRequestWithRAG(message string, useRAG bool, filePaths []string) (s
 - 预览图片: [OPERATION:preview_image:path=图片文件路径]
 - 分析图片: [OPERATION:analyze_image:path=图片文件路径]
 - 预览文档: [OPERATION:preview_document:path=文档文件路径]
+
+示例回复：
+用户："你好"
+你的回复："你好！我是HelaList AI助手。我可以帮你管理虚拟网盘文件、创建文件夹、分析图片等。请告诉我你需要什么帮助！"
+
+用户："列出根目录"
+你的回复："好的，我来为您列出根目录的内容。
+[OPERATION:list_files:path=/]"
+
+用户："创建一个叫documents的文件夹"  
+你的回复："我将为您在根目录下创建一个名为documents的文件夹。
+[OPERATION:create_folder:path=/documents]"
+
+用户："在当前目录创建小明文件夹"
+你的回复："我将为您创建一个名为小明的文件夹。请告诉我您当前在哪个目录，或者我在根目录下为您创建：
+[OPERATION:create_folder:path=/小明]"
 
 请用中文回复。只有明确的操作请求才需要添加操作标记。`
 
