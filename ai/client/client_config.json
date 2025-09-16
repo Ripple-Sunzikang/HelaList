@@ -1,0 +1,8 @@
+{
+  "server_command": "go",
+  "server_args": [
+    "run",
+    "../server/main.go"
+  ],
+  "timeout_seconds": 30
+}
