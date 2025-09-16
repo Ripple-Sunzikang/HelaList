@@ -1348,39 +1348,39 @@ func checkDescriptionMatch(searchDesc, imageDesc string) (bool, float64, error) 
 - 相似度评分应该反映匹配程度，1.0表示完全匹配，0.0表示完全不匹配
 - 只有相似度>0.5才认为是匹配的
 - 对于颜色、物体、场景等关键词要适当放宽匹配条件`, searchDesc, imageDesc)
-	
+
 	response, _, err := callQwenAPI("你是一个图片描述匹配专家，请准确判断两个描述的相似度，直接返回JSON格式，不要添加任何markdown标记。", prompt)
 	if err != nil {
 		return false, 0, err
 	}
-	
+
 	// 清理响应，移除可能的代码块标记
 	cleanResponse := strings.TrimSpace(response)
 	cleanResponse = strings.TrimPrefix(cleanResponse, "```json")
 	cleanResponse = strings.TrimPrefix(cleanResponse, "```")
 	cleanResponse = strings.TrimSuffix(cleanResponse, "```")
 	cleanResponse = strings.TrimSpace(cleanResponse)
-	
+
 	// 如果响应中包含JSON，尝试提取
 	if jsonStart := strings.Index(cleanResponse, "{"); jsonStart != -1 {
 		if jsonEnd := strings.LastIndex(cleanResponse, "}"); jsonEnd != -1 && jsonEnd > jsonStart {
-			cleanResponse = cleanResponse[jsonStart:jsonEnd+1]
+			cleanResponse = cleanResponse[jsonStart : jsonEnd+1]
 		}
 	}
-	
+
 	// 解析JSON响应
 	var result struct {
 		Match      bool    `json:"match"`
 		Similarity float64 `json:"similarity"`
 		Reason     string  `json:"reason"`
 	}
-	
+
 	if err := json.Unmarshal([]byte(cleanResponse), &result); err != nil {
 		// 如果JSON解析失败，使用改进的文本匹配
 		log.Printf("JSON解析失败，使用改进的文本匹配: %v, 响应内容: %s", err, cleanResponse)
 		return improvedTextMatch(searchDesc, imageDesc), 0.7, nil
 	}
-	
+
 	// 降低匹配阈值，使其更容易匹配
 	return result.Match && result.Similarity > 0.5, result.Similarity, nil
 }
@@ -1389,10 +1389,10 @@ func checkDescriptionMatch(searchDesc, imageDesc string) (bool, float64, error) 
 func improvedTextMatch(searchDesc, imageDesc string) bool {
 	searchLower := strings.ToLower(searchDesc)
 	imageLower := strings.ToLower(imageDesc)
-	
+
 	// 分割搜索词
 	searchWords := strings.Fields(searchLower)
-	
+
 	// 计算匹配的关键词数量
 	matchCount := 0
 	for _, word := range searchWords {
@@ -1400,7 +1400,7 @@ func improvedTextMatch(searchDesc, imageDesc string) bool {
 			matchCount++
 		}
 	}
-	
+
 	// 如果超过50%的关键词匹配，则认为匹配
 	return float64(matchCount)/float64(len(searchWords)) > 0.5
 }
