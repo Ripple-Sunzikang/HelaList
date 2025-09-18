@@ -68,4 +68,15 @@ export const api = {
       return api.post('/api/fs/move', { src_path: srcPath, dst_path: dstPath })
     },
   },
+  storage: {
+    create: (storage: any) => {
+      return api.post('/api/storage/create', storage)
+    },
+    getAll: () => {
+      return api.get('/api/storage/all')
+    },
+    load: (storage: any) => {
+      return api.post('/api/storage/load', storage)
+    },
+  },
 }

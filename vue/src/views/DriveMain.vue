@@ -77,7 +77,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, shallowRef } from 'vue';
+import { ref, computed, shallowRef, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { useDriveStore } from '@/stores/drive'
 import Sidebar from '../components/Sidebar.vue';
 import FilesView from './drive/FilesView.vue';
@@ -89,10 +90,19 @@ import { Expand, Fold, UploadFilled, FolderAdd, ChatDotRound, Close } from '@ele
 import { ElMessage } from 'element-plus';
 
 // State
+const route = useRoute();
 const activeView = ref('home');
 const sidebarCollapsed = ref(false);
 const showUploadModal = ref(false);
 const showAIPanel = ref(false);
+
+// 组件挂载时检查URL参数
+onMounted(() => {
+  const view = route.query.view as string;
+  if (view && ['home', 'downloads', 'mounts', 'settings'].includes(view)) {
+    activeView.value = view;
+  }
+});
 
 const viewComponents = {
   home: FilesView,

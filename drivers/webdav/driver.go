@@ -39,7 +39,7 @@ var config = driver.Config{
 	DefaultRoot: "/",
 }
 
-// 设置驱动层客户端，调用gowebdav
+// 设置驱动层客户端
 func (wd *WebDav) setClient() error {
 	c := gowebdav.NewClient(wd.Address, wd.Username, wd.Password)
 	c.SetTransport(&http.Transport{

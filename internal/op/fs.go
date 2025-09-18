@@ -229,13 +229,6 @@ func List(ctx context.Context, storage driver.Driver, path string, args model.Li
 			HandleObjsUpdateHook(reqPath, files)
 		}(utils.GetFullPath(storage.GetStorage().MountPath, path), files)
 
-		// 诶我突然就很好奇，万一不sort会怎么样。
-		// // sort objs
-		// if storage.Config().LocalSort {
-		// 	model.SortFiles(files, storage.GetStorage().OrderBy, storage.GetStorage().OrderDirection)
-		// }
-		// model.ExtractFolder(files, storage.GetStorage().ExtractFolder)
-
 		if !storage.Config().NoCache {
 			if len(files) > 0 {
 				// log.Debugf("set cache: %s => %+v", key, files)
@@ -259,7 +252,6 @@ func MakeDir(ctx context.Context, storage driver.Driver, path string, lazyCache 
 	path = utils.FixAndCleanPath(path)
 	key := Key(storage, path)
 	_, err, _ := mkdirG.Do(key, func() (interface{}, error) {
-		// check if dir exists
 		f, err := GetUnwrap(ctx, storage, path)
 		if err != nil {
 			if strings.Contains(err.Error(), "object not found") {

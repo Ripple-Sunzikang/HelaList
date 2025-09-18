@@ -30,7 +30,7 @@ type Config struct {
 	NoOverwriteUpload bool `json:"-"`
 }
 
-// MustProxy returns true if the driver must be proxy
+// 进行文件代理
 func (c Config) MustProxy() bool {
 	return c.OnlyProxy || c.OnlyLinkMFile
 }

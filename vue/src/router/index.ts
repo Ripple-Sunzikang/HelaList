@@ -7,6 +7,8 @@ const LoginPage = () => import('../views/LoginPage.vue')
 const RegisterPage = () => import('../views/RegisterPage.vue')
 // @ts-ignore
 const DriveMain = () => import('../views/DriveMain.vue')
+// @ts-ignore
+const MountStorage = () => import('../views/MountStorage.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -40,6 +42,15 @@ const router = createRouter({
       meta: {
         title: '网盘主页',
   requiresAuth: true // 需要登录才能访问
+      }
+    },
+    {
+      path: '/mount',
+      name: 'mount',
+      component: MountStorage,
+      meta: {
+        title: '挂载存储',
+        requiresAuth: true // 需要登录才能访问
       }
     }
   ],
