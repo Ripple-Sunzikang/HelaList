@@ -73,6 +73,35 @@ func (d *WebDav) GetAddition() driver.Additional {
 	return &d.Addition
 }
 
+// Get 方法：正确处理路径转换
+func (d *WebDav) Get(ctx context.Context, path string) (model.Obj, error) {
+	// 将HelaList路径转换为WebDAV服务器路径
+	webdavPath := d.getWebdavPath(path)
+
+	// 获取文件信息
+	info, err := d.client.Stat(webdavPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.Object{
+		Name:         info.Name(),
+		Size:         info.Size(),
+		ModifiedTime: info.ModTime(),
+		IsFolder:     info.IsDir(),
+		Path:         path, // 保持HelaList中的路径
+	}, nil
+}
+
+// 辅助方法：将HelaList路径转换为WebDAV服务器路径
+func (d *WebDav) getWebdavPath(helaListPath string) string {
+	// 如果有root_folder_path，需要加上前缀
+	if d.RootFolderPath != "" {
+		return path.Join(d.RootFolderPath, helaListPath)
+	}
+	return helaListPath
+}
+
 func (d *WebDav) Drop(ctx context.Context) error {
 	// todo: 定期执行服务器连接刷新
 	/*
@@ -85,7 +114,10 @@ func (d *WebDav) Drop(ctx context.Context) error {
 
 // 列举指定文件夹的目录
 func (d *WebDav) List(ctx context.Context, dir model.Obj, args model.ListArgs) ([]model.Obj, error) {
-	files, err := d.client.ReadDir(dir.GetPath())
+	// 将HelaList路径转换为WebDAV服务器路径
+	webdavPath := d.getWebdavPath(dir.GetPath())
+
+	files, err := d.client.ReadDir(webdavPath)
 	if err != nil {
 		return nil, err
 	}
@@ -100,23 +132,31 @@ func (d *WebDav) List(ctx context.Context, dir model.Obj, args model.ListArgs) (
 }
 
 func (d *WebDav) MakeDir(ctx context.Context, parentDir model.Obj, dirName string) error {
-	return d.client.MkdirAll(path.Join(parentDir.GetPath(), dirName), 0644)
+	webdavPath := d.getWebdavPath(path.Join(parentDir.GetPath(), dirName))
+	return d.client.MkdirAll(webdavPath, 0644)
 }
 
 func (d *WebDav) Move(ctx context.Context, srcObj, dstDir model.Obj) error {
-	return d.client.Rename(getPath(srcObj), path.Join(dstDir.GetPath(), srcObj.GetName()), true)
+	srcPath := d.getWebdavPath(getPath(srcObj))
+	dstPath := d.getWebdavPath(path.Join(dstDir.GetPath(), srcObj.GetName()))
+	return d.client.Rename(srcPath, dstPath, true)
 }
 
 func (d *WebDav) Rename(ctx context.Context, srcObj model.Obj, newName string) error {
-	return d.client.Rename(getPath(srcObj), path.Join(path.Dir(srcObj.GetPath()), newName), true)
+	srcPath := d.getWebdavPath(getPath(srcObj))
+	dstPath := d.getWebdavPath(path.Join(path.Dir(srcObj.GetPath()), newName))
+	return d.client.Rename(srcPath, dstPath, true)
 }
 
 func (d *WebDav) Copy(ctx context.Context, srcObj, dstDir model.Obj) error {
-	return d.client.Copy(getPath(srcObj), path.Join(dstDir.GetPath(), srcObj.GetName()), true)
+	srcPath := d.getWebdavPath(getPath(srcObj))
+	dstPath := d.getWebdavPath(path.Join(dstDir.GetPath(), srcObj.GetName()))
+	return d.client.Copy(srcPath, dstPath, true)
 }
 
 func (d *WebDav) Remove(ctx context.Context, obj model.Obj) error {
-	return d.client.RemoveAll(getPath(obj))
+	webdavPath := d.getWebdavPath(getPath(obj))
+	return d.client.RemoveAll(webdavPath)
 }
 
 func (d *WebDav) Put(ctx context.Context, dstDir model.Obj, s model.FileStreamer, up driver.UpdateProgress) error {
@@ -128,12 +168,14 @@ func (d *WebDav) Put(ctx context.Context, dstDir model.Obj, s model.FileStreamer
 		Reader:         s,
 		UpdateProgress: up,
 	})
-	err := d.client.WriteStream(path.Join(dstDir.GetPath(), s.GetName()), reader, 0644, callback)
+	webdavPath := d.getWebdavPath(path.Join(dstDir.GetPath(), s.GetName()))
+	err := d.client.WriteStream(webdavPath, reader, 0644, callback)
 	return err
 }
 
 func (d *WebDav) Link(ctx context.Context, file model.Obj, args model.LinkArgs) (*model.Link, error) {
-	url, header, err := d.client.Link(file.GetPath())
+	webdavPath := d.getWebdavPath(file.GetPath())
+	url, header, err := d.client.Link(webdavPath)
 	if err != nil {
 		return nil, err
 	}
