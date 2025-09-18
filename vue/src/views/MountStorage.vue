@@ -49,7 +49,7 @@
               required
               class="form-input"
             />
-            <small class="help-text">WebDAV服务器的完整URL地址</small>
+            <small class="help-text">WebDAV服务器的完整URL地址（例如: https://dav.jianguoyun.com/dav/）</small>
           </div>
           
           <div class="form-group">

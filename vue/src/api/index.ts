@@ -64,6 +64,7 @@ export const api = {
     const body = isForm ? data : JSON.stringify(data)
     return request<T>(url, { method: 'POST', body, headers: headersRecord })
   },
+  delete: <T = any>(url: string) => request<T>(url, { method: 'DELETE' }),
   fs: {
     rename: (path: string, name: string) => {
       return api.post('/api/fs/rename', { path, name })
@@ -84,6 +85,9 @@ export const api = {
     },
     load: (storage: any) => {
       return api.post('/api/storage/load', storage)
+    },
+    delete: (id: string) => {
+      return api.delete(`/api/storage/${id}`)
     },
   },
 }

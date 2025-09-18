@@ -30,6 +30,9 @@
               >
                 {{ getStatusText(storage.status) }}
               </el-tag>
+              <el-tooltip v-if="storage.status !== 'work'" content="点击删除无效存储" placement="top">
+                <el-icon class="warning-icon"><Warning /></el-icon>
+              </el-tooltip>
             </div>
           </div>
 
@@ -37,6 +40,10 @@
             <div class="detail-item">
               <span class="label">驱动类型:</span>
               <span class="value">{{ storage.driver.toUpperCase() }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">服务器地址:</span>
+              <span class="value">{{ getAddressFromAddition(storage.addition) }}</span>
             </div>
             <div class="detail-item">
               <span class="label">排序优先级:</span>
@@ -91,7 +98,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Warning } from '@element-plus/icons-vue'
 import { api } from '@/api'
 
 const router = useRouter()
@@ -166,6 +173,17 @@ const formatDate = (dateString: string) => {
   }
 }
 
+// 从addition JSON中获取服务器地址
+const getAddressFromAddition = (additionStr: string) => {
+  if (!additionStr) return '未知'
+  try {
+    const addition = JSON.parse(additionStr)
+    return addition.address || '未知'
+  } catch {
+    return '格式错误'
+  }
+}
+
 // 编辑存储
 const editStorage = (storage: any) => {
   ElMessage.info('编辑功能暂未实现')
@@ -205,10 +223,17 @@ const deleteStorage = async (storage: any) => {
       }
     )
     
-    // 这里应该调用删除存储的API
-    ElMessage.info('删除功能暂未实现')
-  } catch {
-    // 用户取消操作
+    // 调用删除API
+    await api.storage.delete(storage.id)
+    ElMessage.success('存储删除成功')
+    
+    // 重新加载存储列表
+    await fetchStorages()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('删除存储错误:', error)
+      ElMessage.error(`删除失败: ${error.message || error}`)
+    }
   }
 }
 
@@ -277,6 +302,17 @@ onMounted(() => {
   margin: 0;
   font-size: 14px;
   color: #909399;
+}
+
+.storage-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.warning-icon {
+  color: #f56c6c;
+  font-size: 16px;
 }
 
 .storage-details {

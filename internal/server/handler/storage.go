@@ -80,3 +80,18 @@ func LoadStorageHandler(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "loaded"})
 }
+
+func DeleteStorageHandler(c *gin.Context) {
+	storageID := c.Param("id")
+	if storageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "存储ID不能为空"})
+		return
+	}
+
+	err := op.DeleteStorage(c.Request.Context(), storageID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
+}

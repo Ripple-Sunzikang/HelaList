@@ -80,6 +80,41 @@ func LoadStorage(ctx context.Context, storage model.Storage) error {
 	return err
 }
 
+func DeleteStorage(ctx context.Context, storageID string) error {
+	// 解析UUID
+	id, err := uuid.Parse(storageID)
+	if err != nil {
+		return errors.WithMessage(err, "invalid storage ID format")
+	}
+
+	// 从数据库获取存储信息
+	storage, err := service.GetStorageById(id)
+	if err != nil {
+		return errors.WithMessage(err, "failed to get storage from database")
+	}
+	if storage == nil {
+		return errors.New("storage not found")
+	}
+
+	// 从内存中移除存储驱动
+	mountPath := utils.FixAndCleanPath(storage.MountPath)
+	if storagesMap.Has(mountPath) {
+		storageDriver, _ := storagesMap.Load(mountPath)
+		storagesMap.Delete(mountPath)
+		go callStorageHooks("remove", storageDriver)
+		logrus.Debugf("storage %s removed from memory", mountPath)
+	}
+
+	// 从数据库删除存储记录
+	err = service.DeleteStorageById(id)
+	if err != nil {
+		return errors.WithMessage(err, "failed to delete storage from database")
+	}
+
+	logrus.Infof("storage %s deleted successfully", mountPath)
+	return nil
+}
+
 func getCurrentGoroutineStack() string {
 	buf := make([]byte, 1<<16)
 	n := runtime.Stack(buf, false)

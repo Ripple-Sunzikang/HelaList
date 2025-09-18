@@ -71,6 +71,7 @@ func registerStorageRoutes(r *gin.Engine) {
 		storage.POST("/create", handler.CreateStorageHandler)
 		storage.POST("/update", handler.UpdateStorageHandler)
 		storage.POST("/load", handler.LoadStorageHandler)
+		storage.DELETE("/:id", handler.DeleteStorageHandler)
 		storage.GET("/all", handler.GetAllStoragesHandler)
 		storage.GET("/has/:mountPath", handler.HasStorageHandler)
 		storage.GET("/:mountPath", handler.GetStorageByMountPathHandler)
