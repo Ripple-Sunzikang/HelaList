@@ -6,9 +6,11 @@ import (
 	"HelaList/internal/op"
 	"context"
 	"crypto/tls"
+	"log"
 	"net/http"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/OpenListTeam/OpenList/v4/pkg/gowebdav"
 	"github.com/OpenListTeam/OpenList/v4/pkg/utils"
@@ -75,6 +77,8 @@ func (d *WebDav) GetAddition() driver.Additional {
 
 // Get 方法：正确处理路径转换
 func (d *WebDav) Get(ctx context.Context, path string) (model.Obj, error) {
+	log.Printf("WebDAV Get方法收到路径: %s", path)
+
 	// 将HelaList路径转换为WebDAV服务器路径
 	webdavPath := d.getWebdavPath(path)
 
@@ -96,10 +100,18 @@ func (d *WebDav) Get(ctx context.Context, path string) (model.Obj, error) {
 // 辅助方法：将HelaList路径转换为WebDAV服务器路径
 func (d *WebDav) getWebdavPath(helaListPath string) string {
 	// 如果有root_folder_path，需要加上前缀
+	webdavPath := helaListPath
 	if d.RootFolderPath != "" {
-		return path.Join(d.RootFolderPath, helaListPath)
+		webdavPath = path.Join(d.RootFolderPath, helaListPath)
 	}
-	return helaListPath
+	
+	// 让WebDAV客户端库自己处理URL编码
+	// 我们只传递原始路径
+	
+	// 添加调试日志
+	log.Printf("WebDAV路径转换: %s -> %s (不进行预编码)", helaListPath, webdavPath)
+	
+	return webdavPath
 }
 
 func (d *WebDav) Drop(ctx context.Context) error {
@@ -174,7 +186,21 @@ func (d *WebDav) Put(ctx context.Context, dstDir model.Obj, s model.FileStreamer
 }
 
 func (d *WebDav) Link(ctx context.Context, file model.Obj, args model.LinkArgs) (*model.Link, error) {
-	webdavPath := d.getWebdavPath(file.GetPath())
+	// 获取文件的路径，并转换为WebDAV路径
+	filePath := file.GetPath()
+	log.Printf("WebDAV Link方法收到文件路径: %s", filePath)
+
+	// 检查路径是否包含mount_path前缀，如果有则去掉
+	mountPath := d.GetStorage().MountPath
+	if strings.HasPrefix(filePath, mountPath) {
+		filePath = strings.TrimPrefix(filePath, mountPath)
+		if filePath == "" {
+			filePath = "/"
+		}
+		log.Printf("去掉mount_path前缀后: %s", filePath)
+	}
+
+	webdavPath := d.getWebdavPath(filePath)
 	url, header, err := d.client.Link(webdavPath)
 	if err != nil {
 		return nil, err
