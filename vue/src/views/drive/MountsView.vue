@@ -111,10 +111,22 @@ const fetchStorages = async () => {
   try {
     const data = await api.storage.getAll()
     console.log('获取到的存储数据:', data) // 调试日志
-    storages.value = Array.isArray(data) ? data : []
+    
+    // 后端直接返回数组，不是{code, message, data}格式
+    if (Array.isArray(data)) {
+      storages.value = data
+    } else if (data && Array.isArray(data.data)) {
+      storages.value = data.data
+    } else {
+      console.warn('存储数据格式异常:', data)
+      storages.value = []
+    }
+    
+    console.log('设置后的storages:', storages.value) // 调试日志
   } catch (error: any) {
     console.error('获取存储列表错误:', error) // 调试日志
     ElMessage.error(`获取存储列表失败: ${error.message}`)
+    storages.value = []
   } finally {
     loading.value = false
   }

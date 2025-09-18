@@ -36,7 +36,14 @@ async function request<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   }
 
   if (contentType.includes('application/json')) {
-    const body = (await resp.json()) as ApiResult<any>
+    const body = await resp.json()
+    
+    // 如果响应直接是数组或其他数据，直接返回
+    if (Array.isArray(body) || typeof body !== 'object' || !body.hasOwnProperty('code')) {
+      return body as T
+    }
+    
+    // 处理标准的{code, message, data}格式
     if (body.code && body.code !== 200) {
       throw new Error(body.message || 'api error')
     }
