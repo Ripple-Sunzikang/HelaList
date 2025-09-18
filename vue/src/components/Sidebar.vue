@@ -29,11 +29,6 @@
       <el-icon><i-ep-data-line /></el-icon>
       <template #title>挂载</template>
     </el-menu-item>
-
-    <el-menu-item index="settings">
-      <el-icon><i-ep-setting /></el-icon>
-      <template #title>设置</template>
-    </el-menu-item>
   </el-menu>
 </template>
 

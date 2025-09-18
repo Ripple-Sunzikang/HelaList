@@ -16,7 +16,7 @@
           v-for="storage in storages" 
           :key="storage.id"
           class="storage-card"
-          :class="{ 'disabled': storage.disabled, 'error': storage.status !== 'work' }"
+          :class="{ 'error': storage.status !== 'work' }"
         >
           <div class="storage-header">
             <div class="storage-info">
@@ -60,16 +60,6 @@
           </div>
 
           <div class="storage-actions">
-            <el-button size="small" type="primary" @click="editStorage(storage)">
-              编辑
-            </el-button>
-            <el-button 
-              size="small" 
-              :type="storage.disabled ? 'success' : 'warning'"
-              @click="toggleStorageStatus(storage)"
-            >
-              {{ storage.disabled ? '启用' : '禁用' }}
-            </el-button>
             <el-button size="small" type="danger" @click="deleteStorage(storage)">
               删除
             </el-button>
@@ -184,32 +174,6 @@ const getAddressFromAddition = (additionStr: string) => {
   }
 }
 
-// 编辑存储
-const editStorage = (storage: any) => {
-  ElMessage.info('编辑功能暂未实现')
-}
-
-// 切换存储状态
-const toggleStorageStatus = async (storage: any) => {
-  try {
-    const action = storage.disabled ? '启用' : '禁用'
-    await ElMessageBox.confirm(
-      `确定要${action}存储 "${storage.remark || storage.mount_path}" 吗？`,
-      '确认操作',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-    
-    // 这里应该调用更新存储的API
-    ElMessage.info('切换状态功能暂未实现')
-  } catch {
-    // 用户取消操作
-  }
-}
-
 // 删除存储
 const deleteStorage = async (storage: any) => {
   try {
@@ -272,11 +236,6 @@ onMounted(() => {
 .storage-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
-}
-
-.storage-card.disabled {
-  opacity: 0.6;
-  background: #f5f7fa;
 }
 
 .storage-card.error {

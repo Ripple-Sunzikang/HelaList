@@ -84,7 +84,6 @@ import Sidebar from '../components/Sidebar.vue';
 import FilesView from './drive/FilesView.vue';
 import DownloadsView from './drive/DownloadsView.vue';
 import MountsView from './drive/MountsView.vue';
-import SettingsView from './drive/SettingsView.vue';
 import AIChat from '@/components/AIChat.vue';
 import { Expand, Fold, UploadFilled, FolderAdd, ChatDotRound, Close } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
@@ -99,7 +98,7 @@ const showAIPanel = ref(false);
 // 组件挂载时检查URL参数
 onMounted(() => {
   const view = route.query.view as string;
-  if (view && ['home', 'downloads', 'mounts', 'settings'].includes(view)) {
+  if (view && ['home', 'downloads', 'mounts'].includes(view)) {
     activeView.value = view;
   }
 });
@@ -108,7 +107,6 @@ const viewComponents = {
   home: FilesView,
   downloads: DownloadsView,
   mounts: MountsView,
-  settings: SettingsView,
 };
 
 // Computed
@@ -122,7 +120,6 @@ const currentPageTitle = computed(() => {
     'home': '文件管理',
     'downloads': '下载管理',
     'mounts': '磁盘挂载',
-    'settings': '系统设置',
   };
   return titles[activeView.value] || '文件管理';
 });
